@@ -139,7 +139,29 @@ async fn main() {
 
     let chatbot_state = std::sync::Arc::new(tokio::sync::RwLock::new(true));
     let chat_history = std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new()));
+    let clan_data = std::sync::Arc::new(tokio::sync::RwLock::new(String::new()));
     let api_chatbot_state = chatbot_state.clone();
+
+    // Background task to fetch clan data
+    let fetch_clan_data = clan_data.clone();
+    tokio::spawn(async move {
+        let client = reqwest::Client::new();
+        loop {
+            match client.get("https://4funclan.site/api/clan-data").send().await {
+                Ok(res) => {
+                    if let Ok(json) = res.json::<serde_json::Value>().await {
+                        if json["success"].as_bool().unwrap_or(false) {
+                            let mut lock = fetch_clan_data.write().await;
+                            *lock = serde_json::to_string(&json["data"]).unwrap_or_default();
+                            info!("Successfully fetched and updated clan data from website");
+                        }
+                    }
+                }
+                Err(e) => error!("Failed to fetch clan data: {}", e),
+            }
+            tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await; // 1 jam
+        }
+    });
 
     let framework_pool = pool.clone();
     let api_pool = pool.clone();
@@ -175,6 +197,7 @@ async fn main() {
                     chatbot_enabled: chatbot_state,
                     db_pool: framework_pool,
                     chat_history,
+                    clan_data,
                     start_time,
                 })
             })

@@ -91,7 +91,16 @@ pub async fn handle_chat(ctx: &SerenityContext, msg: &Message, data: &Data, prom
     let jakarta_offset = chrono::FixedOffset::east_opt(7 * 3600).unwrap();
     let current_time = chrono::Utc::now().with_timezone(&jakarta_offset).format("%Y-%m-%d %H:%M WIB").to_string();
 
+    let clan_data_str = {
+        let lock = data.clan_data.read().await;
+        lock.clone()
+    };
+
     let system_instruction = format!(r#"{}
+    
+    [INFO SERVER CLAN 4FUN (Website Data)]
+    Berikut adalah daftar Member Resmi dan Peraturan (Rules) yang bersumber dari website 4funclan.site:
+    {}
     
     [INFO]
     Waktu: {}
@@ -102,7 +111,8 @@ pub async fn handle_chat(ctx: &SerenityContext, msg: &Message, data: &Data, prom
     1. JANGAN pernah bertingkah seperti AI/Robot/Customer Service. Jadilah manusia nyata (cowok tongkrongan/gamer asisten).
     2. Jawab SEDIKIT MUNGKIN, 1-2 kalimat saja kalau obrolan biasa. Jangan cerewet!
     3. Gunakan bahasa Indo gaul (gw, lu, bro, cuy, wkwk, jir). Boleh typo dikit biar natural.
-    4. Wajib balas dalam format JSON berikut:
+    4. Kamu SEKARANG TAHU siapa saja member 4FUN dan apa saja aturannya dari referensi di atas. Jawablah sesuai data itu kalau ada yang nanya.
+    5. Wajib balas dalam format JSON berikut:
     {{
         "reply": "Balasanmu yang natural dan singkat",
         "memory_updates": {{
@@ -113,6 +123,7 @@ pub async fn handle_chat(ctx: &SerenityContext, msg: &Message, data: &Data, prom
     }}
     "#, 
         base_prompt, 
+        if clan_data_str.is_empty() { "Belum ada data dari website.".to_string() } else { clan_data_str },
         current_time, 
         username,
         memory.relationship_score,

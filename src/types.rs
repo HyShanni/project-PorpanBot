@@ -4,6 +4,7 @@ pub struct Data {
     pub chatbot_enabled: Arc<tokio::sync::RwLock<bool>>,
     pub db_pool: sqlx::PgPool,
     pub chat_history: Arc<tokio::sync::RwLock<std::collections::HashMap<u64, Vec<serde_json::Value>>>>,
+    pub clan_data: Arc<tokio::sync::RwLock<String>>,
     pub start_time: std::time::Instant,
 }
 
