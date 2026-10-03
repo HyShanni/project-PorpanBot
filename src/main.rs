@@ -169,7 +169,7 @@ async fn main() {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 
                 use serenity::all::{ActivityData, OnlineStatus};
-                ctx.set_presence(Some(ActivityData::playing("with Kh1ev")), OnlineStatus::Online);
+                ctx.set_presence(Some(ActivityData::playing("Roblox | 4FUN Clan")), OnlineStatus::Online);
 
                 Ok(Data {
                     chatbot_enabled: chatbot_state,
