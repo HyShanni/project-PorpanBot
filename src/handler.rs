@@ -117,7 +117,7 @@ pub async fn event_handler(
                 prompt = prompt.replace(&mention_tag1, "").replace(&mention_tag2, "").trim().to_string();
 
                 if prompt.is_empty() {
-                    prompt = "Halo Kh1vella!".to_string();
+                    prompt = "Halo 4FunBot!".to_string();
                 }
 
                 let _ = msg.channel_id.broadcast_typing(&ctx.http).await;

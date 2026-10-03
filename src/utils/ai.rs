@@ -75,45 +75,40 @@ pub async fn handle_chat(ctx: &SerenityContext, msg: &Message, data: &Data, prom
         .unwrap_or(None)
         .unwrap_or_default();
 
-    let relationship_context = if user_id == 494169184175915019 {
-        "USER INI ADALAH PHION! Sahabat cowok masa kecilmu dan kamu diam-diam naksir dia. Bicaralah dengannya dengan sangat akrab, baik, santai, dan peduli. Kadang agak gengsi kalau ditanya soal perasaan, tapi overall kamu sangat nyaman dan manis padanya."
-    } else if memory.relationship_score < 20 {
-        "User ini baru kenal. Bicaralah dengan ramah, santai, namun tidak terlalu sok asik."
-    } else if memory.relationship_score < 40 {
-        "User ini sekadar kenalan (acquaintance). Lumayan biasa saja."
-    } else if memory.relationship_score < 60 {
-        "User ini teman (friend). Kamu sudah lumayan akrab dan santai."
+    let relationship_context = if memory.relationship_score < 20 {
+        "Baru kenal, sapa dengan ramah tapi santai."
+    } else if memory.relationship_score < 50 {
+        "Teman nongkrong, ngobrol biasa."
     } else if memory.relationship_score < 80 {
-        "User ini teman dekat (close friend). Bisa saling bercanda bebas dan kadang nge-roast."
+        "Sangat akrab, bisa diajak bercanda."
     } else {
-        "User ini sahabat (best friend). Bicaralah sangat natural, bebas, dan sangat akrab."
+        "Bestie sejati, bebas tanpa kaku."
     };
 
-    let base_prompt = std::fs::read_to_string("khivella_prompt.txt")
-        .unwrap_or_else(|_| "Kamu adalah Khivella, cewek SMA 17 tahun di Surabaya yang santai.".to_string());
+    let base_prompt = std::fs::read_to_string("porpan_prompt.txt")
+        .unwrap_or_else(|_| "Kamu adalah Porpan, asisten resmi clan 4FUN yang siap membantu.".to_string());
         
     let jakarta_offset = chrono::FixedOffset::east_opt(7 * 3600).unwrap();
     let current_time = chrono::Utc::now().with_timezone(&jakarta_offset).format("%Y-%m-%d %H:%M WIB").to_string();
 
     let system_instruction = format!(r#"{}
     
-    [WAKTU SAAT INI]
+    [INFO]
     Waktu: {}
+    User: {} (Skor akrab: {}/100 -> {})
+    Game: {} | Makanan: {} | Lainnya: {}
     
-    [MEMORI USER: {}]
-    - Relationship Score: {}/100 ({})
-    - Game Favorit: {}
-    - Makanan Favorit: {}
-    - Fakta Lain: {}
-    
-    [INSTRUKSI OUTPUT (WAJIB JSON)]
-    Balas dalam format JSON yang valid dan di-parse:
+    [INSTRUKSI WAJIB]
+    1. JANGAN pernah bertingkah seperti AI/Robot/Customer Service. Jadilah manusia nyata (cowok tongkrongan/gamer asisten).
+    2. Jawab SEDIKIT MUNGKIN, 1-2 kalimat saja kalau obrolan biasa. Jangan cerewet!
+    3. Gunakan bahasa Indo gaul (gw, lu, bro, cuy, wkwk, jir). Boleh typo dikit biar natural.
+    4. Wajib balas dalam format JSON berikut:
     {{
-        "reply": "Balasan chatmu ke user",
+        "reply": "Balasanmu yang natural dan singkat",
         "memory_updates": {{
-            "favorite_game": "isi jika user menyebutkan game favoritnya, jika tidak null",
-            "favorite_food": "isi jika user menyebutkan makanan favoritnya, jika tidak null",
-            "about_user": "isi fakta penting lainnya tentang user, jika tidak null"
+            "favorite_game": "update jika ada, atau null",
+            "favorite_food": "update jika ada, atau null",
+            "about_user": "update jika ada, atau null"
         }}
     }}
     "#, 
@@ -122,9 +117,9 @@ pub async fn handle_chat(ctx: &SerenityContext, msg: &Message, data: &Data, prom
         username,
         memory.relationship_score,
         relationship_context,
-        memory.favorite_game.as_deref().unwrap_or("Belum diketahui"),
-        memory.favorite_food.as_deref().unwrap_or("Belum diketahui"),
-        memory.about_user.as_deref().unwrap_or("Belum diketahui")
+        memory.favorite_game.as_deref().unwrap_or("-"),
+        memory.favorite_food.as_deref().unwrap_or("-"),
+        memory.about_user.as_deref().unwrap_or("-")
     );
 
     let channel_id = msg.channel_id.get();
@@ -134,7 +129,7 @@ pub async fn handle_chat(ctx: &SerenityContext, msg: &Message, data: &Data, prom
         hist_lock.get(&channel_id).cloned().unwrap_or_default()
     };
 
-    let formatted_prompt = format!("[{}] berkata: {}", username, prompt);
+    let formatted_prompt = format!("[{}] {}", username, prompt);
     current_history.push(json!({
         "role": "user",
         "parts": [{"text": formatted_prompt}]
@@ -168,8 +163,8 @@ pub async fn handle_chat(ctx: &SerenityContext, msg: &Message, data: &Data, prom
                                 "parts": [{"text": gemini_data.reply}]
                             }));
 
-                            if current_history.len() > 6 {
-                                let start = current_history.len() - 6;
+                            if current_history.len() > 4 {
+                                let start = current_history.len() - 4;
                                 current_history = current_history[start..].to_vec();
                             }
                             

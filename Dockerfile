@@ -22,4 +22,4 @@ COPY . .
 RUN cargo build --release
 
 # Run the binary
-CMD ["./target/release/kh1evbot"]
+CMD ["./target/release/bot4fun"]
