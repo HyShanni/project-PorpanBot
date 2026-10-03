@@ -137,7 +137,7 @@ pub async fn handle_chat(ctx: &SerenityContext, msg: &Message, data: &Data, prom
 
     let api_key = env::var("GEMINI_API_KEY").unwrap_or_default();
     let model = env::var("GEMINI_MODEL").unwrap_or_else(|_| "gemini-3.8-flash".to_string());
-    let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}", model, api_key);
+    let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent", model);
     
     let client = reqwest::Client::new();
     let body = json!({
@@ -150,7 +150,13 @@ pub async fn handle_chat(ctx: &SerenityContext, msg: &Message, data: &Data, prom
         }
     });
 
-    match client.post(&url).json(&body).send().await {
+    let req = if api_key.starts_with("AQ.") {
+        client.post(&url).header("Authorization", format!("Bearer {}", api_key))
+    } else {
+        client.post(&url).header("x-goog-api-key", &api_key)
+    };
+
+    match req.json(&body).send().await {
         Ok(res) => {
             if let Ok(json_res) = res.json::<serde_json::Value>().await {
                 if let Some(text) = json_res["candidates"][0]["content"]["parts"][0]["text"].as_str() {
