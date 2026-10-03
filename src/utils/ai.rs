@@ -136,7 +136,7 @@ pub async fn handle_chat(ctx: &SerenityContext, msg: &Message, data: &Data, prom
     }));
 
     let api_key = env::var("GEMINI_API_KEY").unwrap_or_default();
-    let model = env::var("GEMINI_MODEL").unwrap_or_else(|_| "gemini-3.8-flash".to_string());
+    let model = env::var("GEMINI_MODEL").unwrap_or_else(|_| "gemini-1.5-flash".to_string());
     let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}", model, api_key);
     
     let client = reqwest::Client::new();
