@@ -161,11 +161,7 @@ pub async fn handle_chat(ctx: &SerenityContext, msg: &Message, data: &Data, prom
         }
     });
 
-    let req = if api_key.starts_with("AQ.") {
-        client.post(&url).header("Authorization", format!("Bearer {}", api_key))
-    } else {
-        client.post(&url).header("x-goog-api-key", &api_key)
-    };
+    let req = client.post(&url).header("x-goog-api-key", &api_key);
 
     match req.json(&body).send().await {
         Ok(res) => {
