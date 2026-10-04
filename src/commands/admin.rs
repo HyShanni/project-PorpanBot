@@ -517,7 +517,7 @@ pub async fn checknames(ctx: Context<'_>) -> Result<(), Error> {
     }
     
     let client = reqwest::Client::new();
-    let mut offenders: Vec<(String, String)> = Vec::new();
+    let mut offenders: Vec<String> = Vec::new();
     let mut checked = 0;
     
     for chunk in user_ids.chunks(100) {
