@@ -488,3 +488,58 @@ pub async fn profile(
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
 }
+
+#[poise::command(slash_command, prefix_command, category = "Utility", aliases("member"))]
+pub async fn members(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.defer().await?;
+    let clan_data_str = ctx.data().clan_data.read().await.clone();
+    
+    if clan_data_str.is_empty() {
+        send_embed(ctx, "Members", "Data clan belum tersedia. Coba lagi nanti.", 0xED4245).await?;
+        return Ok(());
+    }
+
+    let members_data = match serde_json::from_str::<serde_json::Value>(&clan_data_str) {
+        Ok(v) => v,
+        Err(_) => {
+            send_embed(ctx, "Error", "Gagal memproses data clan.", 0xED4245).await?;
+            return Ok(());
+        }
+    };
+
+    let members_arr = members_data.as_array().or_else(|| members_data["members"].as_array());
+    if let Some(arr) = members_arr {
+        let mut embed = serenity::builder::CreateEmbed::new()
+            .title("👥 4FUN Clan Members")
+            .color(0x3498db)
+            .description(format!("Total Members: **{}**", arr.len()));
+
+        let mut current_field = String::new();
+        let mut field_count = 1;
+
+        for member in arr {
+            let name = member["name"].as_str().unwrap_or("Unknown");
+            let username = member["username"].as_str().unwrap_or("Unknown");
+            let discord_id = member["socials"]["discordId"].as_str().unwrap_or("");
+            
+            let line = format!("• **{}** (`@{}`) - <@{}>\n", name, username, discord_id);
+            
+            if current_field.len() + line.len() > 1024 {
+                embed = embed.field(format!("Part {}", field_count), current_field.clone(), false);
+                current_field = String::new();
+                field_count += 1;
+            }
+            current_field.push_str(&line);
+        }
+        
+        if !current_field.is_empty() {
+            embed = embed.field(format!("Part {}", field_count), current_field, false);
+        }
+
+        ctx.send(poise::CreateReply::default().embed(embed)).await?;
+    } else {
+        send_embed(ctx, "Error", "Data member tidak ditemukan.", 0xED4245).await?;
+    }
+    
+    Ok(())
+}

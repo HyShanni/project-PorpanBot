@@ -174,7 +174,7 @@ async fn main() {
                 lock(), unlock(), slowmode(), chatbot(), status(), autoreply(),
                 booster(), sticky(), restart(), checknames(),
                 ping(), userinfo(), serverinfo(), avatar(), help(),
-                grab(), report(), stats(), about(), profile(),
+                grab(), report(), stats(), about(), profile(), members(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some("ff".into()),
