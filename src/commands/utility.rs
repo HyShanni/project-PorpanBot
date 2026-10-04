@@ -525,15 +525,14 @@ pub async fn members(ctx: Context<'_>) -> Result<(), Error> {
             let line = format!("• **{}** (`@{}`) - <@{}>\n", name, username, discord_id);
             
             if current_field.len() + line.len() > 1024 {
-                embed = embed.field(format!("Part {}", field_count), current_field.clone(), false);
+                embed = embed.field("\u{200B}", current_field.clone(), false);
                 current_field = String::new();
-                field_count += 1;
             }
             current_field.push_str(&line);
         }
         
         if !current_field.is_empty() {
-            embed = embed.field(format!("Part {}", field_count), current_field, false);
+            embed = embed.field("\u{200B}", current_field, false);
         }
 
         ctx.send(poise::CreateReply::default().embed(embed)).await?;
