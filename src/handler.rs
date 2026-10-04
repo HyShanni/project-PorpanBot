@@ -109,8 +109,10 @@ pub async fn event_handler(
             } else {
                 false
             };
+            
+            let contains_porpan = msg.content.to_lowercase().contains("porpan");
 
-            if is_mention || is_reply {
+            if is_mention || is_reply || contains_porpan {
                 let mut prompt = msg.content.clone();
                 let mention_tag1 = format!("<@{}>", bot_id);
                 let mention_tag2 = format!("<@!{}>", bot_id);
