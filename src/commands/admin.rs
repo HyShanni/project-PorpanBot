@@ -544,14 +544,14 @@ pub async fn checknames(ctx: Context<'_>) -> Result<(), Error> {
                                     
                                     let mut detail = String::new();
                                     if roblox_display_name != json_name.to_lowercase() {
-                                        detail = format!("`{}` ➡️ `{}`", json_name, user["displayName"].as_str().unwrap_or(""));
+                                        detail = format!("`{}` -> `{}`", json_name, user["displayName"].as_str().unwrap_or(""));
                                     } else if roblox_username != json_username.to_lowercase() {
-                                        detail = format!("`@{}` ➡️ `@{}`", json_username, user["name"].as_str().unwrap_or(""));
+                                        detail = format!("`@{}` -> `@{}`", json_username, user["name"].as_str().unwrap_or(""));
                                     }
                                     
                                     if !detail.is_empty() {
                                         if let Some(discord_id) = member["socials"]["discordId"].as_str() {
-                                            offenders.push((discord_id.to_string(), detail));
+                                            offenders.push(format!("<@{}>: {}", discord_id, detail));
                                         }
                                     }
                                     checked += 1;
@@ -571,24 +571,18 @@ pub async fn checknames(ctx: Context<'_>) -> Result<(), Error> {
     if offenders.is_empty() {
         send_embed(ctx, "Check Names", &format!("Checked {} accounts. All names are matching!", checked), 0x00FF00).await?;
     } else {
-        let mut pings = String::new();
-        let mut msg_content = String::new();
+        let mut msg_content = "**UNAUTHORIZED NAME CHANGE DETECTED**\n\nThe following users have changed their Roblox Name without prior notice:\n\n".to_string();
         
-        for (discord_id, detail) in &offenders {
-            pings.push_str(&format!("<@{}> ", discord_id));
-            msg_content.push_str(&format!("🔹 <@{}> : {}\n", discord_id, detail));
+        for offender in &offenders {
+            msg_content.push_str(offender);
+            msg_content.push('\n');
         }
         
-        msg_content.push_str("\n🚨 **ACTION REQUIRED** 🚨\nPlease open a ticket within **24 hours** to clarify this name change, or you will be **kicked**.");
-        
-        let embed = serenity::builder::CreateEmbed::new()
-            .title("⚠️ UNAUTHORIZED NAME CHANGE ⚠️")
-            .color(0xef4444)
-            .description(format!("The following users have changed their Roblox Name without prior notice:\n\n{}", msg_content));
+        msg_content.push_str("\n**ACTION REQUIRED**\nPlease open a ticket within 24 hours to clarify this name change, or you will be kicked.");
         
         // Send to specific channel 1556213720173125642
         let target_channel_id = serenity::model::id::ChannelId::new(1556213720173125642);
-        let _ = target_channel_id.send_message(ctx.http(), serenity::builder::CreateMessage::new().content(pings).embed(embed)).await;
+        let _ = target_channel_id.send_message(ctx.http(), serenity::builder::CreateMessage::new().content(&msg_content)).await;
         
         send_embed(ctx, "Check Names", &format!("Found {} mismatches! Warning has been sent to the target channel.", offenders.len()), 0xFFD700).await?;
     }

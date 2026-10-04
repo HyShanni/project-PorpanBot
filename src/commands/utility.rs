@@ -382,32 +382,39 @@ pub async fn profile(
     
     if let Some(member) = found_member {
         let name = member["name"].as_str().unwrap_or("Unknown");
+        let username = member["username"].as_str().unwrap_or("Unknown");
         let roblox_url = member["robloxProfile"].as_str().unwrap_or("");
         let roles = member["roles"].as_array()
             .map(|arr| arr.iter().filter_map(|r| r.as_str()).collect::<Vec<_>>().join(", "))
             .unwrap_or_else(|| "MEMBER".to_string());
-            
-        let mut desc = format!("**Role:** {}\n", roles);
         
-        if !roblox_url.is_empty() {
-            desc.push_str(&format!("**Roblox:** [{}]({})\n", name, roblox_url));
+        let id = member["id"].as_i64().unwrap_or(0);
+        let priority = member["orderPriority"].as_i64().unwrap_or(0);
+        let img = member["image"].as_str().unwrap_or("");
+        
+        if !img.is_empty() {
+            embed = embed.image(img);
         }
+
+        embed = embed.title(format!("{}'s 4FUN Profile", discord_name))
+                     .description(format!("**Clan ID:** {}\n**Priority Level:** {}\n**Role:** {}", id, priority, roles))
+                     .field("🎮 Roblox Info", format!("**Display Name:** {}\n**Username:** @{}\n**Profile:** [Link Profil]({})", name, username, roblox_url), false);
         
+        let mut socials = format!("**Discord:** <@{}>", target_discord_id);
         if let Some(tiktok) = member["socials"]["tiktok"].as_str() {
             if !tiktok.is_empty() {
-                desc.push_str(&format!("**TikTok:** [@{}](https://tiktok.com/@{})\n", tiktok, tiktok));
+                socials.push_str(&format!("\n**TikTok:** [@{}](https://tiktok.com/@{})", tiktok, tiktok));
             }
         }
+        embed = embed.field("🌐 Social Media", socials, false);
         
         if let Some(bio) = member["description"].as_str() {
             if !bio.is_empty() {
-                desc.push_str(&format!("\n*\"{}\"*", bio));
+                embed = embed.field("📝 Bio", format!("*\"{}\"*", bio), false);
             }
         }
         
-        embed = embed.title(format!("{}'s 4FUN Profile", discord_name))
-                     .description(desc)
-                     .footer(serenity::builder::CreateEmbedFooter::new("4FUN Clan Member"));
+        embed = embed.footer(serenity::builder::CreateEmbedFooter::new("4FUN Clan Member"));
     } else {
         embed = embed.title(format!("{}'s Profile", discord_name))
                      .description(format!("**Discord ID:** {}\n*This user is not registered in the 4FUN website data.*", target_discord_id));
