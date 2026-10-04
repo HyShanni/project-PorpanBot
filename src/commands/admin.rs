@@ -614,10 +614,10 @@ pub async fn autothread_set(
 
     match res {
         Ok(_) => {
-            send_embed(ctx, "Gallery Configured", &format!("Channel <#{}> has been set up as a gallery.\n**Auto-Reacts:** {}", channel_id, emojis), 0x2ecc71).await?;
+            send_embed(ctx, "Auto-Thread Configured", &format!("Channel <#{}> has been set up for auto-threads.\n**Auto-Reacts:** {}", channel_id, emojis), 0x2ecc71).await?;
         },
         Err(e) => {
-            send_embed(ctx, "Error", &format!("Failed to configure gallery: {}", e), 0xED4245).await?;
+            send_embed(ctx, "Error", &format!("Failed to configure auto-thread: {}", e), 0xED4245).await?;
         }
     }
     Ok(())
@@ -640,10 +640,10 @@ pub async fn autothread_remove(
 
     match res {
         Ok(_) => {
-            send_embed(ctx, "Gallery Removed", &format!("Channel <#{}> is no longer a gallery.", channel_id), 0x2ecc71).await?;
+            send_embed(ctx, "Auto-Thread Removed", &format!("Channel <#{}> is no longer using auto-threads.", channel_id), 0x2ecc71).await?;
         },
         Err(e) => {
-            send_embed(ctx, "Error", &format!("Failed to remove gallery: {}", e), 0xED4245).await?;
+            send_embed(ctx, "Error", &format!("Failed to remove auto-thread: {}", e), 0xED4245).await?;
         }
     }
     Ok(())
@@ -662,7 +662,7 @@ pub async fn autothread_list(ctx: Context<'_>) -> Result<(), Error> {
     match rows {
         Ok(results) => {
             if results.is_empty() {
-                send_embed(ctx, "Configured Galleries", "No gallery channels have been set up yet.", 0x3498db).await?;
+                send_embed(ctx, "Configured Auto-Threads", "No auto-thread channels have been set up yet.", 0x3498db).await?;
                 return Ok(());
             }
 
@@ -673,10 +673,10 @@ pub async fn autothread_list(ctx: Context<'_>) -> Result<(), Error> {
                 let emojis: String = r.get("emojis");
                 desc.push_str(&format!("• <#{}> => {}\n", cid, emojis));
             }
-            send_embed(ctx, "Configured Galleries", &desc, 0x3498db).await?;
+            send_embed(ctx, "Configured Auto-Threads", &desc, 0x3498db).await?;
         },
         Err(e) => {
-            send_embed(ctx, "Error", &format!("Failed to fetch galleries: {}", e), 0xED4245).await?;
+            send_embed(ctx, "Error", &format!("Failed to fetch auto-threads: {}", e), 0xED4245).await?;
         }
     }
     Ok(())
