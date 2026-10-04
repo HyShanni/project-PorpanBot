@@ -590,13 +590,13 @@ pub async fn checknames(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, check = "crate::utils::checks::is_staff", category = "Admin", subcommands("gallery_set", "gallery_remove", "gallery_list"))]
-pub async fn gallery(_ctx: Context<'_>) -> Result<(), Error> {
+#[poise::command(slash_command, prefix_command, check = "crate::utils::checks::is_staff", category = "Admin", subcommands("autothread_set", "autothread_remove", "autothread_list"), rename = "autothread")]
+pub async fn autothread(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
 #[poise::command(slash_command, prefix_command, rename = "set", category = "Admin")]
-pub async fn gallery_set(
+pub async fn autothread_set(
     ctx: Context<'_>, 
     #[description = "Target channel"] channel: serenity::model::channel::Channel,
     #[description = "Emojis to react with (separated by space)"] #[rest] emojis: String
@@ -624,7 +624,7 @@ pub async fn gallery_set(
 }
 
 #[poise::command(slash_command, prefix_command, rename = "remove", category = "Admin")]
-pub async fn gallery_remove(
+pub async fn autothread_remove(
     ctx: Context<'_>, 
     #[description = "Target channel"] channel: serenity::model::channel::Channel
 ) -> Result<(), Error> {
@@ -650,7 +650,7 @@ pub async fn gallery_remove(
 }
 
 #[poise::command(slash_command, prefix_command, rename = "list", category = "Admin")]
-pub async fn gallery_list(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn autothread_list(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap();
     let db_pool = &ctx.data().db_pool;
 

@@ -184,7 +184,7 @@ async fn main() {
                 join(), leave(), play(), pause(), resume(), skip(), stop(), queue(), nowplaying(), volume(),
                 kick(), ban(), unban(), purge(), timeout(), warn(), strike(),
                 lock(), unlock(), slowmode(), chatbot(), status(), autoreply(),
-                booster(), sticky(), restart(), checknames(), gallery(),
+                booster(), sticky(), restart(), checknames(), autothread(),
                 ping(), userinfo(), serverinfo(), avatar(), help(),
                 grab(), report(), stats(), about(), profile(), members(),
             ],
