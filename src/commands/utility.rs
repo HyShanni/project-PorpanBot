@@ -511,7 +511,7 @@ pub async fn members(ctx: Context<'_>) -> Result<(), Error> {
     if let Some(arr) = members_arr {
         let mut embed = serenity::builder::CreateEmbed::new()
             .title("👥 4FUN Clan Members")
-            .color(0x3498db)
+            .color(0xef4444)
             .description(format!("Total Members: **{}**", arr.len()));
 
         let mut current_field = String::new();
