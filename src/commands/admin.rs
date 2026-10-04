@@ -475,7 +475,7 @@ struct RobloxUserRequest {
     exclude_banned_users: bool,
 }
 
-#[poise::command(slash_command, prefix_command, category = "Admin", check = "crate::utils::checks::is_staff")]
+#[poise::command(slash_command, prefix_command, category = "Admin", check = "crate::utils::checks::is_staff", aliases("checkname"))]
 pub async fn checknames(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer().await?;
     
@@ -496,7 +496,9 @@ pub async fn checknames(ctx: Context<'_>) -> Result<(), Error> {
     let mut user_map = std::collections::HashMap::new();
     let mut user_ids = Vec::new();
     
-    if let Some(arr) = members.as_array() {
+    let members_arr = members.as_array().or_else(|| members["members"].as_array());
+    
+    if let Some(arr) = members_arr {
         for member in arr {
             if let Some(profile_url) = member["robloxProfile"].as_str() {
                 if let Some(id_str) = profile_url.split("users/").nth(1).and_then(|s| s.split('/').next()) {
