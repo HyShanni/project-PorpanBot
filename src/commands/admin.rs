@@ -467,3 +467,118 @@ pub async fn restart(ctx: Context<'_>) -> Result<(), Error> {
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
     std::process::exit(1);
 }
+
+#[derive(serde::Serialize)]
+struct RobloxUserRequest {
+    userIds: Vec<u64>,
+    #[serde(rename = "excludeBannedUsers")]
+    exclude_banned_users: bool,
+}
+
+#[poise::command(slash_command, prefix_command, category = "Admin", check = "crate::utils::checks::is_staff")]
+pub async fn checknames(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.defer().await?;
+    
+    let clan_data_str = ctx.data().clan_data.read().await.clone();
+    if clan_data_str.is_empty() {
+        send_embed(ctx, "Error", "Clan data is empty or not yet loaded from the website. Please try again later.", 0xED4245).await?;
+        return Ok(());
+    }
+    
+    let members: serde_json::Value = match serde_json::from_str(&clan_data_str) {
+        Ok(v) => v,
+        Err(_) => {
+            send_embed(ctx, "Error", "Failed to parse clan data.", 0xED4245).await?;
+            return Ok(());
+        }
+    };
+    
+    let mut user_map = std::collections::HashMap::new();
+    let mut user_ids = Vec::new();
+    
+    if let Some(arr) = members.as_array() {
+        for member in arr {
+            if let Some(profile_url) = member["robloxProfile"].as_str() {
+                if let Some(id_str) = profile_url.split("users/").nth(1).and_then(|s| s.split('/').next()) {
+                    if let Ok(id) = id_str.parse::<u64>() {
+                        user_ids.push(id);
+                        user_map.insert(id, member.clone());
+                    }
+                }
+            }
+        }
+    }
+    
+    if user_ids.is_empty() {
+        send_embed(ctx, "Check Names", "No Roblox profiles found in clan data.", 0x2b2d31).await?;
+        return Ok(());
+    }
+    
+    let client = reqwest::Client::new();
+    let mut offenders = Vec::new();
+    let mut checked = 0;
+    
+    for chunk in user_ids.chunks(100) {
+        let req_body = RobloxUserRequest {
+            userIds: chunk.to_vec(),
+            exclude_banned_users: false,
+        };
+        
+        match client.post("https://users.roblox.com/v1/users")
+            .json(&req_body)
+            .send()
+            .await {
+            Ok(res) => {
+                if let Ok(json) = res.json::<serde_json::Value>().await {
+                    if let Some(users) = json["data"].as_array() {
+                        for user in users {
+                            if let Some(roblox_id) = user["id"].as_u64() {
+                                if let Some(member) = user_map.get(&roblox_id) {
+                                    let roblox_display_name = user["displayName"].as_str().unwrap_or("").to_lowercase();
+                                    let roblox_username = user["name"].as_str().unwrap_or("").to_lowercase();
+                                    
+                                    let json_name = member["name"].as_str().unwrap_or("");
+                                    let json_username = member["username"].as_str().unwrap_or("");
+                                    
+                                    if roblox_display_name != json_name.to_lowercase() || roblox_username != json_username.to_lowercase() {
+                                        if let Some(discord_id) = member["socials"]["discordId"].as_str() {
+                                            offenders.push(format!(
+                                                "- <@{}> : `{}` (@{}) ➡️ `{}` (@{})",
+                                                discord_id, json_name, json_username,
+                                                user["displayName"].as_str().unwrap_or(""), user["name"].as_str().unwrap_or("")
+                                            ));
+                                        }
+                                    }
+                                    checked += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            Err(_) => {
+                send_embed(ctx, "Error", "Failed to fetch from Roblox API.", 0xED4245).await?;
+                return Ok(());
+            }
+        }
+    }
+    
+    if offenders.is_empty() {
+        send_embed(ctx, "Check Names", &format!("Checked {} accounts. All names are matching!", checked), 0x00FF00).await?;
+    } else {
+        let mut msg_content = "⚠️ **UNAUTHORIZED NAME CHANGE DETECTED** ⚠️\n\nThe following users have changed their Roblox Display Name / Username without prior notice:\n\n".to_string();
+        for offender in offenders {
+            msg_content.push_str(&offender);
+            msg_content.push('\n');
+        }
+        msg_content.push_str("\n🚨 **ACTION REQUIRED** 🚨\nPlease open a ticket within **24 hours** to clarify this name change. If you fail to open a ticket within the time limit, you will be **kicked** by the staff team.");
+        
+        // Send to specific channel 1556213720173125642
+        let target_channel_id = serenity::model::id::ChannelId::new(1556213720173125642);
+        let _ = target_channel_id.send_message(ctx.http(), serenity::builder::CreateMessage::new().content(&msg_content)).await;
+        
+        send_embed(ctx, "Check Names", &format!("Found {} mismatches! Warning has been sent to the target channel.", offenders.len()), 0xFFD700).await?;
+    }
+    
+    Ok(())
+}

@@ -172,12 +172,12 @@ async fn main() {
                 join(), leave(), play(), pause(), resume(), skip(), stop(), queue(),
                 kick(), ban(), unban(), purge(), timeout(), warn(), strike(),
                 lock(), unlock(), slowmode(), chatbot(), status(), autoreply(),
-                booster(), sticky(), restart(),
+                booster(), sticky(), restart(), checknames(),
                 ping(), userinfo(), serverinfo(), avatar(), help(),
                 grab(), report(), stats(), about(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
-                prefix: Some("kh!".into()),
+                prefix: Some("ff".into()),
                 ..Default::default()
             },
             event_handler: |ctx, event, framework, data| {
