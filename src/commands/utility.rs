@@ -515,7 +515,6 @@ pub async fn members(ctx: Context<'_>) -> Result<(), Error> {
             .description(format!("Total Members: **{}**", arr.len()));
 
         let mut current_field = String::new();
-        let mut field_count = 1;
 
         for member in arr {
             let name = member["name"].as_str().unwrap_or("Unknown");

@@ -67,6 +67,12 @@ impl VoiceEventHandler for TrackErrorNotifier {
     }
 }
 
+struct TrackMetadataKey;
+
+impl songbird::typemap::TypeMapKey for TrackMetadataKey {
+    type Value = songbird::input::AuxMetadata;
+}
+
 #[poise::command(slash_command, prefix_command, guild_only, category = "Music")]
 pub async fn play(
     ctx: Context<'_>, 
@@ -103,6 +109,7 @@ pub async fn play(
         let url = metadata.source_url.clone().unwrap_or_else(|| "https://youtube.com".to_string());
 
         let track_handle = handler.enqueue_input(src.into()).await;
+        track_handle.typemap().write().await.insert::<TrackMetadataKey>(metadata.clone());
         let _ = track_handle.add_event(Event::Track(TrackEvent::Error), TrackErrorNotifier);
         
         let embed = serenity::builder::CreateEmbed::new()
@@ -132,13 +139,14 @@ pub async fn nowplaying(ctx: Context<'_>) -> Result<(), Error> {
         
         if let Some(current) = queue.current() {
             let state = current.get_info().await.unwrap();
-            let metadata = current.metadata().clone();
+            let map = current.typemap().read().await;
+            let metadata = map.get::<TrackMetadataKey>();
             
-            let title = metadata.title.unwrap_or_else(|| "Unknown Track".to_string());
-            let url = metadata.source_url.unwrap_or_else(|| "https://youtube.com".to_string());
+            let title = metadata.and_then(|m| m.title.clone()).unwrap_or_else(|| "Unknown Track".to_string());
+            let url = metadata.and_then(|m| m.source_url.clone()).unwrap_or_else(|| "https://youtube.com".to_string());
             
             let current_pos = state.position.as_secs();
-            let total_dur = metadata.duration.map(|d| d.as_secs()).unwrap_or(0);
+            let total_dur = metadata.and_then(|m| m.duration).map(|d| d.as_secs()).unwrap_or(0);
             
             let progress_bar = if total_dur > 0 {
                 let percent = (current_pos as f64 / total_dur as f64) * 20.0;
@@ -308,9 +316,11 @@ pub async fn queue(ctx: Context<'_>) -> Result<(), Error> {
         let mut desc = String::new();
         
         for (i, track) in tracks.iter().enumerate().take(10) {
-            let meta = track.metadata();
-            let title = meta.title.clone().unwrap_or_else(|| "Unknown".to_string());
-            let dur = meta.duration.map(|d| format!("{:02}:{:02}", d.as_secs() / 60, d.as_secs() % 60)).unwrap_or_else(|| "00:00".to_string());
+            let map = track.typemap().read().await;
+            let meta = map.get::<TrackMetadataKey>();
+            
+            let title = meta.and_then(|m| m.title.clone()).unwrap_or_else(|| "Unknown".to_string());
+            let dur = meta.and_then(|m| m.duration).map(|d| format!("{:02}:{:02}", d.as_secs() / 60, d.as_secs() % 60)).unwrap_or_else(|| "00:00".to_string());
             
             if i == 0 {
                 desc.push_str(&format!("🎵 **Currently Playing:**\n**{}** (`{}`)\n\n**Up Next:**\n", title, dur));
