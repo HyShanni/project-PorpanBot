@@ -306,6 +306,8 @@ pub async fn profile(
     #[rest]
     #[description = "Discord tag, ID, or Roblox Name"] query: Option<String>,
 ) -> Result<(), Error> {
+    ctx.defer().await?;
+    
     let clan_data_str = ctx.data().clan_data.read().await.clone();
     
     let mut found_member = None;
@@ -313,7 +315,6 @@ pub async fn profile(
     
     if let Some(q) = &query {
         let q_lower = q.to_lowercase();
-        // Extract ID if it is a discord mention
         let maybe_id = if q.starts_with("<@") && q.ends_with('>') {
             q.replace("<@", "").replace("!", "").replace(">", "")
         } else {
@@ -329,7 +330,6 @@ pub async fn profile(
                         let r_name = member["name"].as_str().unwrap_or("").to_lowercase();
                         let r_user = member["username"].as_str().unwrap_or("").to_lowercase();
                         
-                        // Check if it matches discord id, display name, or username
                         if d_id == maybe_id || r_name == q_lower || r_user == q_lower {
                             found_member = Some(member.clone());
                             target_discord_id = d_id.to_string();
@@ -349,7 +349,6 @@ pub async fn profile(
             }
         }
     } else {
-        // Query is empty, check self
         target_discord_id = ctx.author().id.to_string();
         if !clan_data_str.is_empty() {
             if let Ok(members) = serde_json::from_str::<serde_json::Value>(&clan_data_str) {
@@ -366,12 +365,42 @@ pub async fn profile(
         }
     }
     
-    // Ambil Discord User buat Avatar dan Display Name Discord
-    let discord_user = if let Ok(id) = target_discord_id.parse::<u64>() {
-        ctx.http().get_user(serenity::model::id::UserId::new(id)).await.ok()
-    } else {
-        None
-    };
+    let mut discord_user = None;
+    let mut discord_member = None;
+    
+    if let Ok(id) = target_discord_id.parse::<u64>() {
+        let user_id = serenity::model::id::UserId::new(id);
+        discord_user = ctx.http().get_user(user_id).await.ok();
+        
+        if let Some(guild_id) = ctx.guild_id() {
+            discord_member = guild_id.member(ctx.http(), user_id).await.ok();
+        }
+    }
+    
+    let mut roblox_created = String::new();
+    let mut roblox_live_bio = String::new();
+    
+    if let Some(member) = &found_member {
+        if let Some(roblox_url) = member["robloxProfile"].as_str() {
+            if let Some(id_str) = roblox_url.split("users/").nth(1).and_then(|s| s.split('/').next()) {
+                if let Ok(rbx_id) = id_str.parse::<u64>() {
+                    let req_url = format!("https://users.roblox.com/v1/users/{}", rbx_id);
+                    if let Ok(res) = reqwest::get(&req_url).await {
+                        if let Ok(json) = res.json::<serde_json::Value>().await {
+                            if let Some(created) = json["created"].as_str() {
+                                if let Ok(parsed_time) = chrono::DateTime::parse_from_rfc3339(created) {
+                                    roblox_created = format!("<t:{}:D>", parsed_time.timestamp());
+                                }
+                            }
+                            if let Some(bio) = json["description"].as_str() {
+                                roblox_live_bio = bio.to_string();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     
     let mut embed = serenity::builder::CreateEmbed::new().color(0xef4444);
     let discord_name = discord_user.as_ref().map(|u| u.name.clone()).unwrap_or_else(|| "Unknown User".to_string());
@@ -397,8 +426,36 @@ pub async fn profile(
         }
 
         embed = embed.title(format!("{}'s 4FUN Profile", discord_name))
-                     .description(format!("**Clan ID:** {}\n**Priority Level:** {}\n**Role:** {}", id, priority, roles))
-                     .field("🎮 Roblox Info", format!("**Display Name:** {}\n**Username:** @{}\n**Profile:** [Link Profil]({})", name, username, roblox_url), false);
+                     .description(format!("**Clan ID:** {}\n**Priority Level:** {}\n**Role:** {}", id, priority, roles));
+                     
+        let mut rbx_info = format!("**Display Name:** {}\n**Username:** @{}\n**Profile:** [Link Profil]({})", name, username, roblox_url);
+        if !roblox_created.is_empty() {
+            rbx_info.push_str(&format!("\n**Created At:** {}", roblox_created));
+        }
+        if !roblox_live_bio.is_empty() {
+            let mut trunc_bio = roblox_live_bio.clone();
+            if trunc_bio.len() > 100 {
+                trunc_bio.truncate(97);
+                trunc_bio.push_str("...");
+            }
+            rbx_info.push_str(&format!("\n**Roblox Bio:** *\"{}\"*", trunc_bio));
+        }
+        embed = embed.field("🎮 Roblox Info", rbx_info, false);
+        
+        let d_joined = discord_member.as_ref().and_then(|m| m.joined_at).map(|t| format!("<t:{}:F>", t.unix_timestamp())).unwrap_or_else(|| "Unknown".to_string());
+        let mut d_info = format!("**Server Join Date:** {}", d_joined);
+        
+        if let Some(m) = &discord_member {
+            let mut d_roles: Vec<String> = m.roles.iter().map(|r| format!("<@&{}>", r)).collect();
+            if !d_roles.is_empty() {
+                if d_roles.len() > 5 {
+                    d_roles.truncate(5);
+                    d_roles.push("...".to_string());
+                }
+                d_info.push_str(&format!("\n**Discord Roles:** {}", d_roles.join(", ")));
+            }
+        }
+        embed = embed.field("💬 Discord Info", d_info, false);
         
         let mut socials = format!("**Discord:** <@{}>", target_discord_id);
         if let Some(tiktok) = member["socials"]["tiktok"].as_str() {
@@ -410,7 +467,7 @@ pub async fn profile(
         
         if let Some(bio) = member["description"].as_str() {
             if !bio.is_empty() {
-                embed = embed.field("📝 Bio", format!("*\"{}\"*", bio), false);
+                embed = embed.field("📝 Website Bio", format!("*\"{}\"*", bio), false);
             }
         }
         
@@ -418,6 +475,12 @@ pub async fn profile(
     } else {
         embed = embed.title(format!("{}'s Profile", discord_name))
                      .description(format!("**Discord ID:** {}\n*This user is not registered in the 4FUN website data.*", target_discord_id));
+                     
+        if let Some(m) = &discord_member {
+            if let Some(joined) = m.joined_at {
+                embed = embed.field("Server Join Date", format!("<t:{}:F>", joined.unix_timestamp()), false);
+            }
+        }
     }
     
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
