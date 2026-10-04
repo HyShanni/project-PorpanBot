@@ -462,7 +462,7 @@ pub async fn sticky_list(ctx: Context<'_>) -> Result<(), Error> {
 
 #[poise::command(slash_command, prefix_command, category = "Admin", required_permissions = "ADMINISTRATOR", check = "crate::utils::checks::is_staff")]
 pub async fn restart(ctx: Context<'_>) -> Result<(), Error> {
-    let msg = "Memulai proses *reboot* sistem secara paksa. Khivella akan offline sejenak dan secara otomatis menyala kembali melalui protokol *auto-recovery* Railway.\n\nHarap tunggu beberapa saat...";
+    let msg = "Memulai proses *reboot* sistem secara paksa. Porpan akan offline sejenak dan secara otomatis menyala kembali melalui protokol *auto-recovery* Railway.\n\nHarap tunggu beberapa saat...";
     send_embed(ctx, "System Reboot Initiated", msg, 0xef4444).await?;
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
     std::process::exit(1);
@@ -517,7 +517,7 @@ pub async fn checknames(ctx: Context<'_>) -> Result<(), Error> {
     }
     
     let client = reqwest::Client::new();
-    let mut offenders = Vec::new();
+    let mut offenders: Vec<(String, String)> = Vec::new();
     let mut checked = 0;
     
     for chunk in user_ids.chunks(100) {
@@ -542,13 +542,16 @@ pub async fn checknames(ctx: Context<'_>) -> Result<(), Error> {
                                     let json_name = member["name"].as_str().unwrap_or("");
                                     let json_username = member["username"].as_str().unwrap_or("");
                                     
-                                    if roblox_display_name != json_name.to_lowercase() || roblox_username != json_username.to_lowercase() {
+                                    let mut detail = String::new();
+                                    if roblox_display_name != json_name.to_lowercase() {
+                                        detail = format!("`{}` ➡️ `{}`", json_name, user["displayName"].as_str().unwrap_or(""));
+                                    } else if roblox_username != json_username.to_lowercase() {
+                                        detail = format!("`@{}` ➡️ `@{}`", json_username, user["name"].as_str().unwrap_or(""));
+                                    }
+                                    
+                                    if !detail.is_empty() {
                                         if let Some(discord_id) = member["socials"]["discordId"].as_str() {
-                                            offenders.push(format!(
-                                                "- <@{}> : `{}` (@{}) ➡️ `{}` (@{})",
-                                                discord_id, json_name, json_username,
-                                                user["displayName"].as_str().unwrap_or(""), user["name"].as_str().unwrap_or("")
-                                            ));
+                                            offenders.push((discord_id.to_string(), detail));
                                         }
                                     }
                                     checked += 1;
@@ -568,16 +571,24 @@ pub async fn checknames(ctx: Context<'_>) -> Result<(), Error> {
     if offenders.is_empty() {
         send_embed(ctx, "Check Names", &format!("Checked {} accounts. All names are matching!", checked), 0x00FF00).await?;
     } else {
-        let mut msg_content = "⚠️ **UNAUTHORIZED NAME CHANGE DETECTED** ⚠️\n\nThe following users have changed their Roblox Display Name / Username without prior notice:\n\n".to_string();
-        for offender in &offenders {
-            msg_content.push_str(offender);
-            msg_content.push('\n');
+        let mut pings = String::new();
+        let mut msg_content = String::new();
+        
+        for (discord_id, detail) in &offenders {
+            pings.push_str(&format!("<@{}> ", discord_id));
+            msg_content.push_str(&format!("🔹 <@{}> : {}\n", discord_id, detail));
         }
-        msg_content.push_str("\n🚨 **ACTION REQUIRED** 🚨\nPlease open a ticket within **24 hours** to clarify this name change. If you fail to open a ticket within the time limit, you will be **kicked** by the staff team.");
+        
+        msg_content.push_str("\n🚨 **ACTION REQUIRED** 🚨\nPlease open a ticket within **24 hours** to clarify this name change, or you will be **kicked**.");
+        
+        let embed = serenity::builder::CreateEmbed::new()
+            .title("⚠️ UNAUTHORIZED NAME CHANGE ⚠️")
+            .color(0xef4444)
+            .description(format!("The following users have changed their Roblox Name without prior notice:\n\n{}", msg_content));
         
         // Send to specific channel 1556213720173125642
         let target_channel_id = serenity::model::id::ChannelId::new(1556213720173125642);
-        let _ = target_channel_id.send_message(ctx.http(), serenity::builder::CreateMessage::new().content(&msg_content)).await;
+        let _ = target_channel_id.send_message(ctx.http(), serenity::builder::CreateMessage::new().content(pings).embed(embed)).await;
         
         send_embed(ctx, "Check Names", &format!("Found {} mismatches! Warning has been sent to the target channel.", offenders.len()), 0xFFD700).await?;
     }

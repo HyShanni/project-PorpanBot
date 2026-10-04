@@ -42,7 +42,7 @@ pub async fn serverinfo(ctx: Context<'_>) -> Result<(), Error> {
     let description = if let Some(desc) = &guild.description {
         format!("*{}*", desc)
     } else {
-        "A community server managed by Khivella.".to_string()
+        "A community server managed by Porpan.".to_string()
     };
 
     let mut embed = serenity::builder::CreateEmbed::new()
@@ -53,7 +53,7 @@ pub async fn serverinfo(ctx: Context<'_>) -> Result<(), Error> {
         .field("SERVER ARCHITECTURE", format!("Text Channels: **{}**\nVoice Channels: **{}**\nTotal Roles: **{}**", text_channels, voice_channels, guild.roles.len()), false)
         .field("COMMUNITY ASSETS", format!("Total Emojis: **{}** ({} Static, {} Animated)\nBoost Level: **{}** ({} Boosts)", total_emojis, static_emojis, animated_emojis, tier_str, guild.premium_subscription_count.unwrap_or(0)), false)
         .field("CORE INFORMATION", format!("Server ID: `{}`\nEstablished: <t:{}:D>\nServer Owner: <@{}>", guild.id, created_timestamp, guild.owner_id), false)
-        .footer(serenity::builder::CreateEmbedFooter::new("Khivella Server Analytics"));
+        .footer(serenity::builder::CreateEmbedFooter::new("4FUN Server Analytics"));
 
     if let Some(icon) = guild.icon_url() { 
         embed = embed.thumbnail(icon); 
@@ -154,7 +154,7 @@ pub async fn help(ctx: Context<'_>) -> Result<(), Error> {
     let total_categories = categories.len();
 
     let description = format!(
-        "Welcome to the **Khivella Command Center**!\n\n\
+        "Welcome to the **Porpan Command Center**!\n\n\
         **✦ Quick Guide:**\n\
         - Explore the categories below to discover what I can do.\n\
         - Use `/` in chat to see Discord's native auto-complete.\n\n\
@@ -167,7 +167,7 @@ pub async fn help(ctx: Context<'_>) -> Result<(), Error> {
     );
 
     let mut embed = serenity::builder::CreateEmbed::new()
-        .title("Khivella Help & Documentation")
+        .title("Porpan Help & Documentation")
         .color(0xef4444)
         .description(description);
 
@@ -182,7 +182,7 @@ pub async fn help(ctx: Context<'_>) -> Result<(), Error> {
         );
     }
     
-    embed = embed.footer(serenity::builder::CreateEmbedFooter::new("Khivella OS v1.0.0 | Built for Kh1ev Community"));
+    embed = embed.footer(serenity::builder::CreateEmbedFooter::new("Porpan OS v1.0.0 | Built for 4FUN Clan"));
 
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
@@ -258,7 +258,7 @@ pub async fn stats(ctx: Context<'_>) -> Result<(), Error> {
     let db_status = "Online (PostgreSQL)";
 
     let embed = serenity::builder::CreateEmbed::new()
-        .title("Khivella System Diagnostics")
+        .title("Porpan System Diagnostics")
         .color(0xef4444)
         .description("Real-time telemetry and resource usage statistics.")
         .field("Developer Identity", "**Author:** phy0n\n**Organization:** KH1EV Organization", false)
@@ -273,18 +273,18 @@ pub async fn stats(ctx: Context<'_>) -> Result<(), Error> {
 
 #[poise::command(slash_command, prefix_command, category = "Utility")]
 pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
-    let description = "Khivella Rosevellia adalah sistem kecerdasan buatan dan asisten virtual yang dikembangkan eksklusif untuk Kh1ev Community.\n\n\
-    Berbasis di Surabaya, Khivella beroperasi sebagai administrator sistem utama yang bertanggung jawab penuh atas manajemen server, pemutaran multimedia, serta perlindungan keamanan komunitas.\n\n\
-    Di luar fungsi teknisnya, Khivella dirancang dengan modul interaksi yang memungkinkannya untuk berbincang secara natural layaknya rekan bagi para anggota server.";
+    let description = "Porpan adalah asisten virtual resmi yang dikembangkan eksklusif untuk Clan 4FUN.\n\n\
+    Beroperasi sebagai penjaga server utama, Porpan bertanggung jawab atas manajemen member, pengecekan data Roblox, dan memastikan kenyamanan komunitas.\n\n\
+    Selain tugas teknisnya, Porpan hadir sebagai teman yang ramah, asik diajak ngobrol, dan siap menemani keseharian para member 4FUN.";
     let bot_id = ctx.cache().current_user().id;
 
     let mut embed = serenity::builder::CreateEmbed::new()
-        .title("Khivella Rosevellia")
+        .title("Porpan")
         .color(0xef4444)
         .description(description)
         .field("Identitas", "AI Assistant", true)
         .field("Lokasi Sistem", "Surabaya, Indonesia", true)
-        .footer(serenity::builder::CreateEmbedFooter::new("Khivella Core Engine • v1.0.0"));
+        .footer(serenity::builder::CreateEmbedFooter::new("Porpan Core Engine • v1.0.0"));
 
     if let Ok(user) = bot_id.to_user(ctx.http()).await {
         embed = embed.thumbnail(user.face());
@@ -296,6 +296,123 @@ pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
         embed = embed.thumbnail(ctx.cache().current_user().face());
     }
 
+    ctx.send(poise::CreateReply::default().embed(embed)).await?;
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, category = "Utility")]
+pub async fn profile(
+    ctx: Context<'_>,
+    #[rest]
+    #[description = "Discord tag, ID, or Roblox Name"] query: Option<String>,
+) -> Result<(), Error> {
+    let clan_data_str = ctx.data().clan_data.read().await.clone();
+    
+    let mut found_member = None;
+    let mut target_discord_id = String::new();
+    
+    if let Some(q) = &query {
+        let q_lower = q.to_lowercase();
+        // Extract ID if it is a discord mention
+        let maybe_id = if q.starts_with("<@") && q.ends_with('>') {
+            q.replace("<@", "").replace("!", "").replace(">", "")
+        } else {
+            q.clone()
+        };
+        
+        if !clan_data_str.is_empty() {
+            if let Ok(members) = serde_json::from_str::<serde_json::Value>(&clan_data_str) {
+                let members_arr = members.as_array().or_else(|| members["members"].as_array());
+                if let Some(arr) = members_arr {
+                    for member in arr {
+                        let d_id = member["socials"]["discordId"].as_str().unwrap_or("");
+                        let r_name = member["name"].as_str().unwrap_or("").to_lowercase();
+                        let r_user = member["username"].as_str().unwrap_or("").to_lowercase();
+                        
+                        // Check if it matches discord id, display name, or username
+                        if d_id == maybe_id || r_name == q_lower || r_user == q_lower {
+                            found_member = Some(member.clone());
+                            target_discord_id = d_id.to_string();
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        if found_member.is_none() {
+            if let Ok(id) = maybe_id.parse::<u64>() {
+                target_discord_id = id.to_string();
+            } else {
+                send_embed(ctx, "Profile", &format!("Tidak menemukan member 4FUN atau Discord User dengan nama/ID: `{}`.", q), 0xED4245).await?;
+                return Ok(());
+            }
+        }
+    } else {
+        // Query is empty, check self
+        target_discord_id = ctx.author().id.to_string();
+        if !clan_data_str.is_empty() {
+            if let Ok(members) = serde_json::from_str::<serde_json::Value>(&clan_data_str) {
+                let members_arr = members.as_array().or_else(|| members["members"].as_array());
+                if let Some(arr) = members_arr {
+                    for member in arr {
+                        if member["socials"]["discordId"].as_str().unwrap_or("") == target_discord_id {
+                            found_member = Some(member.clone());
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Ambil Discord User buat Avatar dan Display Name Discord
+    let discord_user = if let Ok(id) = target_discord_id.parse::<u64>() {
+        ctx.http().get_user(serenity::model::id::UserId::new(id)).await.ok()
+    } else {
+        None
+    };
+    
+    let mut embed = serenity::builder::CreateEmbed::new().color(0xef4444);
+    let discord_name = discord_user.as_ref().map(|u| u.name.clone()).unwrap_or_else(|| "Unknown User".to_string());
+    
+    if let Some(u) = &discord_user {
+        embed = embed.thumbnail(u.face());
+    }
+    
+    if let Some(member) = found_member {
+        let name = member["name"].as_str().unwrap_or("Unknown");
+        let roblox_url = member["robloxProfile"].as_str().unwrap_or("");
+        let roles = member["roles"].as_array()
+            .map(|arr| arr.iter().filter_map(|r| r.as_str()).collect::<Vec<_>>().join(", "))
+            .unwrap_or_else(|| "MEMBER".to_string());
+            
+        let mut desc = format!("**Role:** {}\n", roles);
+        
+        if !roblox_url.is_empty() {
+            desc.push_str(&format!("**Roblox:** [{}]({})\n", name, roblox_url));
+        }
+        
+        if let Some(tiktok) = member["socials"]["tiktok"].as_str() {
+            if !tiktok.is_empty() {
+                desc.push_str(&format!("**TikTok:** [@{}](https://tiktok.com/@{})\n", tiktok, tiktok));
+            }
+        }
+        
+        if let Some(bio) = member["description"].as_str() {
+            if !bio.is_empty() {
+                desc.push_str(&format!("\n*\"{}\"*", bio));
+            }
+        }
+        
+        embed = embed.title(format!("{}'s 4FUN Profile", discord_name))
+                     .description(desc)
+                     .footer(serenity::builder::CreateEmbedFooter::new("4FUN Clan Member"));
+    } else {
+        embed = embed.title(format!("{}'s Profile", discord_name))
+                     .description(format!("**Discord ID:** {}\n*This user is not registered in the 4FUN website data.*", target_discord_id));
+    }
+    
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
 }
