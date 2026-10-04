@@ -419,18 +419,17 @@ pub async fn profile(
         
         let id = member["id"].as_i64().unwrap_or(0);
         let priority = member["orderPriority"].as_i64().unwrap_or(0);
-        let img = member["image"].as_str().unwrap_or("");
         
-        if !img.is_empty() {
-            embed = embed.image(img);
-        }
-
-        embed = embed.title(format!("{}'s 4FUN Profile", discord_name))
-                     .description(format!("**Clan ID:** {}\n**Priority Level:** {}\n**Role:** {}", id, priority, roles));
+        embed = embed.title(format!("{}'s 4FUN Profile", discord_name));
+        
+        // Header Description
+        let header = format!("` ID: {} ` • ` Priority: {} ` • ` Role: {} `\n", id, priority, roles);
+        embed = embed.description(header);
                      
-        let mut rbx_info = format!("**Display Name:** {}\n**Username:** @{}\n**Profile:** [Link Profil]({})", name, username, roblox_url);
+        // Roblox Section
+        let mut rbx_info = format!("**Name:** {} (`@{}`)\n**Profile:** [View Profile]({})\n", name, username, roblox_url);
         if !roblox_created.is_empty() {
-            rbx_info.push_str(&format!("\n**Created At:** {}", roblox_created));
+            rbx_info.push_str(&format!("**Created:** {}\n", roblox_created));
         }
         if !roblox_live_bio.is_empty() {
             let mut trunc_bio = roblox_live_bio.clone();
@@ -438,12 +437,14 @@ pub async fn profile(
                 trunc_bio.truncate(97);
                 trunc_bio.push_str("...");
             }
-            rbx_info.push_str(&format!("\n**Roblox Bio:** *\"{}\"*", trunc_bio));
+            rbx_info.push_str(&format!("**Bio:** *{}*\n", trunc_bio));
         }
-        embed = embed.field("🎮 Roblox Info", rbx_info, false);
+        embed = embed.field("ROBLOX", rbx_info, false);
         
-        let d_joined = discord_member.as_ref().and_then(|m| m.joined_at).map(|t| format!("<t:{}:F>", t.unix_timestamp())).unwrap_or_else(|| "Unknown".to_string());
-        let mut d_info = format!("**Server Join Date:** {}", d_joined);
+        // Discord Section
+        let mut d_info = String::new();
+        let d_joined = discord_member.as_ref().and_then(|m| m.joined_at).map(|t| format!("<t:{}:D>", t.unix_timestamp())).unwrap_or_else(|| "Unknown".to_string());
+        d_info.push_str(&format!("**Joined Server:** {}\n", d_joined));
         
         if let Some(m) = &discord_member {
             let mut d_roles: Vec<String> = m.roles.iter().map(|r| format!("<@&{}>", r)).collect();
@@ -452,22 +453,23 @@ pub async fn profile(
                     d_roles.truncate(5);
                     d_roles.push("...".to_string());
                 }
-                d_info.push_str(&format!("\n**Discord Roles:** {}", d_roles.join(", ")));
+                d_info.push_str(&format!("**Roles:** {}\n", d_roles.join(", ")));
             }
         }
-        embed = embed.field("💬 Discord Info", d_info, false);
+        embed = embed.field("DISCORD", d_info, false);
         
-        let mut socials = format!("**Discord:** <@{}>", target_discord_id);
+        // Socials Section
+        let mut socials = format!("**Discord:** <@{}>\n", target_discord_id);
         if let Some(tiktok) = member["socials"]["tiktok"].as_str() {
             if !tiktok.is_empty() {
-                socials.push_str(&format!("\n**TikTok:** [@{}](https://tiktok.com/@{})", tiktok, tiktok));
+                socials.push_str(&format!("**TikTok:** [@{}](https://tiktok.com/@{})\n", tiktok, tiktok));
             }
         }
-        embed = embed.field("🌐 Social Media", socials, false);
+        embed = embed.field("SOCIALS", socials, false);
         
         if let Some(bio) = member["description"].as_str() {
             if !bio.is_empty() {
-                embed = embed.field("📝 Website Bio", format!("*\"{}\"*", bio), false);
+                embed = embed.field("WEBSITE BIO", format!("*\"{}\"*", bio), false);
             }
         }
         
