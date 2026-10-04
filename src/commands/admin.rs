@@ -567,8 +567,8 @@ pub async fn checknames(ctx: Context<'_>) -> Result<(), Error> {
         send_embed(ctx, "Check Names", &format!("Checked {} accounts. All names are matching!", checked), 0x00FF00).await?;
     } else {
         let mut msg_content = "⚠️ **UNAUTHORIZED NAME CHANGE DETECTED** ⚠️\n\nThe following users have changed their Roblox Display Name / Username without prior notice:\n\n".to_string();
-        for offender in offenders {
-            msg_content.push_str(&offender);
+        for offender in &offenders {
+            msg_content.push_str(offender);
             msg_content.push('\n');
         }
         msg_content.push_str("\n🚨 **ACTION REQUIRED** 🚨\nPlease open a ticket within **24 hours** to clarify this name change. If you fail to open a ticket within the time limit, you will be **kicked** by the staff team.");
