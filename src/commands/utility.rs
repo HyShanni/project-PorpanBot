@@ -142,11 +142,13 @@ pub async fn help(ctx: Context<'_>) -> Result<(), Error> {
     for cmd in commands {
         if cmd.hide_in_help { continue; }
         let category = cmd.category.as_deref().unwrap_or("Uncategorized");
-        categories.entry(category).or_default().push(format!("`/{}`", cmd.name));
+        let desc = cmd.description.as_deref().unwrap_or("No description provided");
+        categories.entry(category).or_default().push(format!("`/{}` - {}", cmd.name, desc));
         total_commands += 1;
         
         for subcmd in &cmd.subcommands {
-            categories.entry(category).or_default().push(format!("`/{} {}`", cmd.name, subcmd.name));
+            let sub_desc = subcmd.description.as_deref().unwrap_or("No description provided");
+            categories.entry(category).or_default().push(format!("`/{} {}` - {}", cmd.name, subcmd.name, sub_desc));
             total_commands += 1;
         }
     }
@@ -160,9 +162,7 @@ pub async fn help(ctx: Context<'_>) -> Result<(), Error> {
         - Use `/` in chat to see Discord's native auto-complete.\n\n\
         **✦ System Stats:**\n\
         - Modules Active: `{}`\n\
-        - Commands Loaded: `{}`\n\n\
-        **✦ Need Support?**\n\
-        - [Join Kh1ev Community](https://discord.gg/MwNE7Vfb6t)",
+        - Commands Loaded: `{}`",
         total_categories, total_commands
     );
 
@@ -177,7 +177,7 @@ pub async fn help(ctx: Context<'_>) -> Result<(), Error> {
     for (cat, cmds) in sorted_categories {
         embed = embed.field(
             format!("🔹 {}", cat),
-            cmds.join(", "),
+            cmds.join("\n"),
             false
         );
     }
@@ -261,11 +261,11 @@ pub async fn stats(ctx: Context<'_>) -> Result<(), Error> {
         .title("Porpan System Diagnostics")
         .color(0xef4444)
         .description("Real-time telemetry and resource usage statistics.")
-        .field("Developer Identity", "**Author:** phy0n\n**Organization:** KH1EV Organization", false)
+        .field("Developer Identity", "**Author:** phy0n\n**Organization:** 4FUN Clan", false)
         .field("Network Reach", format!("**Servers:** {}\n**Cached Users:** {}\n**API Latency:** {}", guild_count, user_count, api_latency), true)
         .field("Hardware", format!("**OS:** {}\n**CPU Cores:** {}\n**RAM:** {} MB / {} MB", os_name, cpu_cores, used_memory, total_memory), true)
         .field("Core Systems", format!("**Database:** {}\n**Framework:** Poise (Rust)\n**Engine Version:** v1.0.0\n**Uptime:** {}", db_status, uptime_str), false)
-        .footer(serenity::builder::CreateEmbedFooter::new("Kh1ev Core Engine"));
+        .footer(serenity::builder::CreateEmbedFooter::new("4FUN Core Engine"));
 
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())

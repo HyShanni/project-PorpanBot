@@ -132,6 +132,18 @@ async fn main() {
         Default::default()
     });
 
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS khivella_galleries (
+            guild_id TEXT NOT NULL,
+            channel_id TEXT NOT NULL,
+            emojis TEXT NOT NULL,
+            UNIQUE(guild_id, channel_id)
+        );"
+    ).execute(&pool).await.unwrap_or_else(|e| {
+        error!("Failed to initialize khivella_galleries table: {:?}", e);
+        Default::default()
+    });
+
     let intents = GatewayIntents::non_privileged() 
         | GatewayIntents::MESSAGE_CONTENT
         | GatewayIntents::GUILD_MEMBERS
@@ -169,10 +181,10 @@ async fn main() {
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             commands: vec![
-                join(), leave(), play(), pause(), resume(), skip(), stop(), queue(),
+                join(), leave(), play(), pause(), resume(), skip(), stop(), queue(), nowplaying(), volume(),
                 kick(), ban(), unban(), purge(), timeout(), warn(), strike(),
                 lock(), unlock(), slowmode(), chatbot(), status(), autoreply(),
-                booster(), sticky(), restart(), checknames(),
+                booster(), sticky(), restart(), checknames(), gallery(),
                 ping(), userinfo(), serverinfo(), avatar(), help(),
                 grab(), report(), stats(), about(), profile(), members(),
             ],

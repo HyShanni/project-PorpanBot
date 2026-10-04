@@ -589,3 +589,95 @@ pub async fn checknames(ctx: Context<'_>) -> Result<(), Error> {
     
     Ok(())
 }
+
+#[poise::command(slash_command, prefix_command, check = "crate::utils::checks::is_staff", category = "Admin", subcommands("gallery_set", "gallery_remove", "gallery_list"))]
+pub async fn gallery(_ctx: Context<'_>) -> Result<(), Error> {
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "set", category = "Admin")]
+pub async fn gallery_set(
+    ctx: Context<'_>, 
+    #[description = "Target channel"] channel: serenity::model::channel::Channel,
+    #[description = "Emojis to react with (separated by space)"] #[rest] emojis: String
+) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let channel_id = channel.id();
+    let db_pool = &ctx.data().db_pool;
+
+    let res = sqlx::query("INSERT INTO khivella_galleries (guild_id, channel_id, emojis) VALUES ($1, $2, $3) ON CONFLICT (guild_id, channel_id) DO UPDATE SET emojis = $3")
+        .bind(guild_id.to_string())
+        .bind(channel_id.to_string())
+        .bind(emojis.clone())
+        .execute(db_pool)
+        .await;
+
+    match res {
+        Ok(_) => {
+            send_embed(ctx, "Gallery Configured", &format!("Channel <#{}> has been set up as a gallery.\n**Auto-Reacts:** {}", channel_id, emojis), 0x2ecc71).await?;
+        },
+        Err(e) => {
+            send_embed(ctx, "Error", &format!("Failed to configure gallery: {}", e), 0xED4245).await?;
+        }
+    }
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "remove", category = "Admin")]
+pub async fn gallery_remove(
+    ctx: Context<'_>, 
+    #[description = "Target channel"] channel: serenity::model::channel::Channel
+) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let channel_id = channel.id();
+    let db_pool = &ctx.data().db_pool;
+
+    let res = sqlx::query("DELETE FROM khivella_galleries WHERE guild_id = $1 AND channel_id = $2")
+        .bind(guild_id.to_string())
+        .bind(channel_id.to_string())
+        .execute(db_pool)
+        .await;
+
+    match res {
+        Ok(_) => {
+            send_embed(ctx, "Gallery Removed", &format!("Channel <#{}> is no longer a gallery.", channel_id), 0x2ecc71).await?;
+        },
+        Err(e) => {
+            send_embed(ctx, "Error", &format!("Failed to remove gallery: {}", e), 0xED4245).await?;
+        }
+    }
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "list", category = "Admin")]
+pub async fn gallery_list(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let db_pool = &ctx.data().db_pool;
+
+    let rows = sqlx::query("SELECT channel_id, emojis FROM khivella_galleries WHERE guild_id = $1")
+        .bind(guild_id.to_string())
+        .fetch_all(db_pool)
+        .await;
+
+    match rows {
+        Ok(results) => {
+            if results.is_empty() {
+                send_embed(ctx, "Configured Galleries", "No gallery channels have been set up yet.", 0x3498db).await?;
+                return Ok(());
+            }
+
+            let mut desc = String::new();
+            use sqlx::Row;
+            for r in results {
+                let cid: String = r.get("channel_id");
+                let emojis: String = r.get("emojis");
+                desc.push_str(&format!("• <#{}> => {}\n", cid, emojis));
+            }
+            send_embed(ctx, "Configured Galleries", &desc, 0x3498db).await?;
+        },
+        Err(e) => {
+            send_embed(ctx, "Error", &format!("Failed to fetch galleries: {}", e), 0xED4245).await?;
+        }
+    }
+    Ok(())
+}

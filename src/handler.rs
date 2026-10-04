@@ -12,6 +12,47 @@ pub async fn event_handler(
             return Ok(());
         }
 
+        let db_pool = &data.db_pool;
+
+        // --- GALLERY & FORUM SYSTEM ---
+        if let Some(guild_id) = msg.guild_id {
+            let row = sqlx::query("SELECT emojis FROM khivella_galleries WHERE guild_id = $1 AND channel_id = $2")
+                .bind(guild_id.to_string())
+                .bind(msg.channel_id.to_string())
+                .fetch_optional(db_pool)
+                .await;
+
+            if let Ok(Some(r)) = row {
+                use sqlx::Row;
+                let emojis_str: String = r.get("emojis");
+
+                if msg.attachments.is_empty() {
+                    let _ = msg.delete(&ctx.http).await;
+                    return Ok(());
+                } else {
+                    let thread_name = format!("Comment on {}'s post", msg.author.name);
+                    let builder = serenity::builder::CreateThread::new(thread_name);
+                    let _ = msg.channel_id.create_thread_from_message(&ctx.http, msg.id, builder).await;
+                    
+                    // Auto React
+                    for emoji_part in emojis_str.split_whitespace() {
+                        let reaction = if emoji_part.starts_with("<:") || emoji_part.starts_with("<a:") {
+                            if let Ok(reaction_type) = std::str::FromStr::from_str(emoji_part) {
+                                Some(reaction_type)
+                            } else { None }
+                        } else {
+                            Some(serenity::all::ReactionType::Unicode(emoji_part.to_string()))
+                        };
+
+                        if let Some(r) = reaction {
+                            let _ = msg.react(&ctx.http, r).await;
+                        }
+                    }
+                }
+            }
+        }
+        // ----------------------
+
         if let Some(guild_id) = msg.guild_id {
             let db_pool = &data.db_pool;
             let msg_content = msg.content.to_lowercase();
