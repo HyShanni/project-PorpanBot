@@ -739,3 +739,106 @@ pub async fn bday_list(ctx: Context<'_>) -> Result<(), Error> {
     }
     Ok(())
 }
+
+#[poise::command(slash_command, prefix_command, category = "Utility", subcommands("ffevent_join"), rename = "ffevent")]
+pub async fn ffevent(_ctx: Context<'_>) -> Result<(), Error> {
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "join", category = "Utility")]
+pub async fn ffevent_join(
+    ctx: Context<'_>,
+    #[description = "Your Roblox Display Name (Optional)"] roblox_name: Option<String>,
+) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let db_pool = &ctx.data().db_pool;
+
+    let state_row = sqlx::query("SELECT is_open, channel_id FROM khivella_ffevent_state WHERE guild_id = $1")
+        .bind(guild_id.to_string())
+        .fetch_optional(db_pool)
+        .await;
+
+    let (is_open, target_channel_id) = match state_row {
+        Ok(Some(row)) => {
+            use sqlx::Row;
+            let open = row.get::<bool, _>("is_open");
+            let cid: Option<String> = row.try_get("channel_id").unwrap_or(None);
+            (open, cid)
+        },
+        _ => (false, None),
+    };
+
+    if !is_open {
+        crate::utils::embeds::send_embed(ctx, "Event Closed", "Sorry! The event registration is currently closed. Please wait for an admin to open it.", 0xED4245).await?;
+        return Ok(());
+    }
+
+    if let Some(required_channel) = target_channel_id {
+        if ctx.channel_id().to_string() != required_channel {
+            crate::utils::embeds::send_embed(ctx, "Invalid Channel", &format!("You can only register for the event in <#{}>.", required_channel), 0xED4245).await?;
+            return Ok(());
+        }
+    }
+
+    let json_data = ctx.data().clan_data.read().await;
+    let parsed: serde_json::Value = serde_json::from_str(&json_data).unwrap_or(serde_json::Value::Null);
+    let members_array = parsed.as_array().or_else(|| parsed["members"].as_array());
+
+    let mut found = false;
+    let mut verified_name = String::new();
+    let author_id = ctx.author().id.to_string();
+
+    if let Some(arr) = members_array {
+        for member in arr {
+            let member_did = member["socials"]["discordId"].as_str().unwrap_or("");
+            let member_name = member["name"].as_str().unwrap_or("");
+            
+            if let Some(ref r_name) = roblox_name {
+                if member_name.to_lowercase() == r_name.to_lowercase() {
+                    if member_did == author_id {
+                        found = true;
+                        verified_name = member_name.to_string();
+                        break;
+                    } else {
+                        crate::utils::embeds::send_embed(ctx, "Verification Failed", &format!("The Roblox name `{}` is not linked to your Discord account in our database!", r_name), 0xED4245).await?;
+                        return Ok(());
+                    }
+                }
+            } else {
+                if member_did == author_id {
+                    found = true;
+                    verified_name = member_name.to_string();
+                    break;
+                }
+            }
+        }
+    }
+
+    if !found {
+        if let Some(r_name) = roblox_name {
+            crate::utils::embeds::send_embed(ctx, "Registration Failed", &format!("The Roblox name `{}` was not found in the 4FUN Clan database.", r_name), 0xED4245).await?;
+        } else {
+            crate::utils::embeds::send_embed(ctx, "Registration Failed", "Your Discord account was not found in the 4FUN Clan database. Please enter your Roblox name manually or contact an Admin.", 0xED4245).await?;
+        }
+        return Ok(());
+    }
+
+    let discord_id = ctx.author().id.to_string();
+    let discord_username = ctx.author().name.clone();
+
+    let res = sqlx::query("INSERT INTO khivella_ffevent_records (guild_id, discord_id, discord_username, roblox_name) VALUES ($1, $2, $3, $4) ON CONFLICT (guild_id, discord_id) DO UPDATE SET roblox_name = $4, timestamp = CURRENT_TIMESTAMP")
+        .bind(guild_id.to_string())
+        .bind(discord_id)
+        .bind(discord_username)
+        .bind(verified_name.clone())
+        .execute(db_pool)
+        .await;
+
+    if res.is_ok() {
+        crate::utils::embeds::send_embed(ctx, "Successfully Joined Event!", &format!("Thank you! Your event registration has been successfully recorded:\n\n**Roblox:** `{}`\n**Discord:** <@{}>", verified_name, ctx.author().id), 0x2ecc71).await?;
+    } else {
+        crate::utils::embeds::send_embed(ctx, "Error", "Failed to save your registration in the database. Please report this to an Admin.", 0xED4245).await?;
+    }
+
+    Ok(())
+}
