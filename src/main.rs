@@ -172,6 +172,32 @@ async fn main() {
         Default::default()
     });
 
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS khivella_birthdays (
+            guild_id TEXT NOT NULL,
+            discord_id TEXT NOT NULL,
+            day INTEGER NOT NULL,
+            month INTEGER NOT NULL,
+            year INTEGER,
+            UNIQUE(guild_id, discord_id)
+        );"
+    ).execute(&pool).await.unwrap_or_else(|e| {
+        error!("Failed to initialize khivella_birthdays table: {:?}", e);
+        Default::default()
+    });
+
+    let _ = sqlx::query("ALTER TABLE khivella_birthdays ADD COLUMN year INTEGER").execute(&pool).await;
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS khivella_bday_config (
+            guild_id TEXT PRIMARY KEY,
+            channel_id TEXT NOT NULL
+        );"
+    ).execute(&pool).await.unwrap_or_else(|e| {
+        error!("Failed to initialize khivella_bday_config table: {:?}", e);
+        Default::default()
+    });
+
     let intents = GatewayIntents::non_privileged() 
         | GatewayIntents::MESSAGE_CONTENT
         | GatewayIntents::GUILD_MEMBERS
@@ -215,7 +241,7 @@ async fn main() {
                 booster(), sticky(), restart(), checknames(), autothread(),
                 ping(), userinfo(), serverinfo(), avatar(), help(),
                 grab(), report(), stats(), about(), profile(), members(),
-                absen(), absen_manage(),
+                absen(), absen_manage(), bday(), bday_manage(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some("ff".into()),

@@ -175,11 +175,26 @@ pub async fn help(ctx: Context<'_>) -> Result<(), Error> {
     sorted_categories.sort_by_key(|(k, _)| *k);
 
     for (cat, cmds) in sorted_categories {
-        embed = embed.field(
-            format!("🔹 {}", cat),
-            cmds.join("\n"),
-            false
-        );
+        let mut current_value = String::new();
+        let mut part = 1;
+        
+        for cmd_str in cmds {
+            if current_value.len() + cmd_str.len() + 1 > 1024 {
+                let title = if part == 1 { format!("🔹 {}", cat) } else { format!("🔹 {} (Cont.)", cat) };
+                embed = embed.field(title, current_value.clone(), false);
+                current_value.clear();
+                part += 1;
+            }
+            if !current_value.is_empty() {
+                current_value.push('\n');
+            }
+            current_value.push_str(&cmd_str);
+        }
+        
+        if !current_value.is_empty() {
+            let title = if part == 1 { format!("🔹 {}", cat) } else { format!("🔹 {} (Cont.)", cat) };
+            embed = embed.field(title, current_value, false);
+        }
     }
     
     embed = embed.footer(serenity::builder::CreateEmbedFooter::new("Porpan OS v1.0.0 | Built for 4FUN Clan"));
@@ -618,5 +633,109 @@ pub async fn absen(
         crate::utils::embeds::send_embed(ctx, "Error", "Failed to save your attendance in the database. Please report this to an Admin.", 0xED4245).await?;
     }
 
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, category = "Utility", subcommands("bday_set", "bday_list"), rename = "bday", aliases("birthday"))]
+pub async fn bday(_ctx: Context<'_>) -> Result<(), Error> {
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "set", category = "Utility")]
+pub async fn bday_set(
+    ctx: Context<'_>,
+    #[description = "Your birthday in DD-MM or DD-MM-YYYY format (e.g. 15-08 or 15-08-2005)"] date: String,
+) -> Result<(), Error> {
+    let parts: Vec<&str> = date.split('-').collect();
+    if parts.len() != 2 && parts.len() != 3 {
+        crate::utils::embeds::send_embed(ctx, "Invalid Format", "Please use `DD-MM` or `DD-MM-YYYY` format. Example: `15-08` or `15-08-2005`.", 0xED4245).await?;
+        return Ok(());
+    }
+
+    let day = parts[0].parse::<u32>().unwrap_or(0);
+    let month = parts[1].parse::<u32>().unwrap_or(0);
+    let mut year: Option<i32> = None;
+
+    if parts.len() == 3 {
+        let parsed_year = parts[2].parse::<i32>().unwrap_or(0);
+        if parsed_year > 0 {
+            // Handle YY format (e.g. 05 -> 2005, 99 -> 1999)
+            year = Some(if parsed_year < 100 {
+                if parsed_year > 50 { 1900 + parsed_year } else { 2000 + parsed_year }
+            } else {
+                parsed_year
+            });
+        }
+    }
+
+    if day == 0 || day > 31 || month == 0 || month > 12 {
+        crate::utils::embeds::send_embed(ctx, "Invalid Date", "That date doesn't exist! Please provide a valid day and month.", 0xED4245).await?;
+        return Ok(());
+    }
+
+    let guild_id = ctx.guild_id().unwrap();
+    let db_pool = &ctx.data().db_pool;
+    let discord_id = ctx.author().id.to_string();
+
+    let res = sqlx::query("INSERT INTO khivella_birthdays (guild_id, discord_id, day, month, year) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (guild_id, discord_id) DO UPDATE SET day = $3, month = $4, year = $5")
+        .bind(guild_id.to_string())
+        .bind(discord_id)
+        .bind(day as i32)
+        .bind(month as i32)
+        .bind(year)
+        .execute(db_pool)
+        .await;
+
+    if res.is_ok() {
+        crate::utils::embeds::send_embed(ctx, "Birthday Set!", &format!("Your birthday has been successfully saved as **{}**! 🎂", date), 0x2ecc71).await?;
+    } else {
+        crate::utils::embeds::send_embed(ctx, "Error", "Failed to save your birthday. Please tell an admin.", 0xED4245).await?;
+    }
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "list", category = "Utility")]
+pub async fn bday_list(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let db_pool = &ctx.data().db_pool;
+
+    let rows = sqlx::query("SELECT discord_id, day, month, year FROM khivella_birthdays WHERE guild_id = $1 ORDER BY month ASC, day ASC")
+        .bind(guild_id.to_string())
+        .fetch_all(db_pool)
+        .await;
+
+    match rows {
+        Ok(results) => {
+            if results.is_empty() {
+                crate::utils::embeds::send_embed(ctx, "Birthdays", "No one has set their birthday yet!", 0x3498db).await?;
+                return Ok(());
+            }
+
+            let mut desc = String::new();
+            use sqlx::Row;
+            for r in results {
+                let discord_id: String = r.get("discord_id");
+                let day: i32 = r.get("day");
+                let month: i32 = r.get("month");
+                let year: Option<i32> = r.try_get("year").unwrap_or(None);
+                
+                let month_name = match month {
+                    1 => "Jan", 2 => "Feb", 3 => "Mar", 4 => "Apr", 5 => "May", 6 => "Jun",
+                    7 => "Jul", 8 => "Aug", 9 => "Sep", 10 => "Oct", 11 => "Nov", 12 => "Dec",
+                    _ => "Unknown",
+                };
+                
+                if let Some(y) = year {
+                    desc.push_str(&format!("• <@{}> - `{} {} {}`\n", discord_id, day, month_name, y));
+                } else {
+                    desc.push_str(&format!("• <@{}> - `{} {}`\n", discord_id, day, month_name));
+                }
+            }
+            crate::utils::embeds::send_embed(ctx, "Clan Birthdays 🎂", &desc, 0xf1c40f).await?;
+        },
+        Err(_) => {
+            crate::utils::embeds::send_embed(ctx, "Error", "Failed to load birthdays.", 0xED4245).await?;
+        }
+    }
     Ok(())
 }

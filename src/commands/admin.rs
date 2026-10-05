@@ -804,3 +804,31 @@ pub async fn absen_manage_clear(ctx: Context<'_>) -> Result<(), Error> {
     }
     Ok(())
 }
+
+#[poise::command(slash_command, prefix_command, check = "crate::utils::checks::is_staff", category = "Admin", subcommands("bday_manage_setchannel"), rename = "bday_manage")]
+pub async fn bday_manage(_ctx: Context<'_>) -> Result<(), Error> {
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "setchannel", category = "Admin")]
+pub async fn bday_manage_setchannel(
+    ctx: Context<'_>, 
+    #[description = "Target channel"] channel: serenity::model::channel::Channel
+) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let channel_id = channel.id();
+    let db_pool = &ctx.data().db_pool;
+
+    let res = sqlx::query("INSERT INTO khivella_bday_config (guild_id, channel_id) VALUES ($1, $2) ON CONFLICT (guild_id) DO UPDATE SET channel_id = $2")
+        .bind(guild_id.to_string())
+        .bind(channel_id.to_string())
+        .execute(db_pool)
+        .await;
+
+    if res.is_ok() {
+        send_embed(ctx, "Birthday Channel Set", &format!("Birthday announcements will now be sent to <#{}>.", channel_id), 0x2ecc71).await?;
+    } else {
+        send_embed(ctx, "Error", "Failed to set birthday channel.", 0xED4245).await?;
+    }
+    Ok(())
+}
