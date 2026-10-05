@@ -131,6 +131,27 @@ pub async fn status(
     Ok(())
 }
 
+#[poise::command(slash_command, prefix_command, default_member_permissions = "ADMINISTRATOR", check = "crate::utils::checks::is_staff", category = "Admin")]
+pub async fn sudo(
+    ctx: Context<'_>,
+    #[description = "Channel tujuan"] channel: serenity::all::ChannelId,
+    #[rest]
+    #[description = "Pesan yang ingin dikirim"] message: String,
+) -> Result<(), Error> {
+    if message.trim().is_empty() {
+        send_embed(ctx, "Error", "Pesan tidak boleh kosong.", 0xED4245).await?;
+        return Ok(());
+    }
+
+    if let Err(e) = channel.say(ctx.http(), &message).await {
+        send_embed(ctx, "Error", &format!("Gagal mengirim pesan: {}", e), 0xED4245).await?;
+    } else {
+        let _ = ctx.send(poise::CreateReply::default().content(format!("✅ Pesan berhasil dikirim ke <#{}>", channel.get())).ephemeral(true)).await;
+    }
+    
+    Ok(())
+}
+
 use sqlx::Row;
 
 #[poise::command(slash_command, prefix_command, category = "Admin", default_member_permissions = "ADMINISTRATOR", required_permissions = "MANAGE_GUILD", check = "crate::utils::checks::is_staff", subcommands("add_autoreply", "list_autoreplies", "remove_autoreply"))]

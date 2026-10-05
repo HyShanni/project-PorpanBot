@@ -266,9 +266,9 @@ pub async fn stats(ctx: Context<'_>) -> Result<(), Error> {
 
 #[poise::command(slash_command, prefix_command, category = "Utility")]
 pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
-    let description = "Halo! Aku Mbak Porpan, bestie sekaligus core member yang ditugasin buat jagain Clan 4FUN. 💅✨\n\n\
-    Tugasku di sini mastiin server kita tetep rapi, mulai dari ngurusin member baru, ngecek absen, sampai muterin lagu kesukaan kalian di voice channel.\n\n\
-    Tapi santai aja, aku bukan sekadar bot kaku kok! Aku juga di sini buat nemenin kalian ngobrol, dengerin curhat, atau sekadar seru-seruan bareng member 4FUN lainnya. Feel free to say hi! 🥰";
+    let description = "Hello! I am Mbak Porpan, a core member assigned to manage and maintain the 4FUN Clan ecosystem.\n\n\
+    My primary role here is to ensure the server remains organized and welcoming. This includes managing new member administration, tracking attendance, and handling your music requests in the voice channels.\n\n\
+    While I operate systematically, I am designed to be flexible and friendly. I am also here to accompany you for casual chats or simply to liven up the atmosphere with other 4FUN members. Feel free to say hi!";
     let bot_id = ctx.cache().current_user().id;
 
     let mut embed = serenity::builder::CreateEmbed::new()

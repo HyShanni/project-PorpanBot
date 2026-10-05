@@ -265,7 +265,7 @@ async fn main() {
             commands: vec![
                 join(), leave(), play(), pause(), resume(), skip(), stop(), queue(), nowplaying(), volume(),
                 kick(), ban(), unban(), purge(), timeout(), warn(), strike(),
-                lock(), unlock(), slowmode(), chatbot(), status(), autoreply(),
+                lock(), unlock(), slowmode(), chatbot(), status(), sudo(), autoreply(),
                 booster(), sticky(), restart(), checknames(), autothread(),
                 ping(), userinfo(), serverinfo(), avatar(), help(),
                 report(), stats(), about(), profile(), members(),
