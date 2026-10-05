@@ -538,7 +538,7 @@ pub async fn members(ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(slash_command, prefix_command, category = "Utility")]
 pub async fn absen(
     ctx: Context<'_>,
-    #[description = "Your Roblox Display Name"] roblox_name: String,
+    #[description = "Your Roblox Display Name (Optional)"] roblox_name: Option<String>,
 ) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap();
     let db_pool = &ctx.data().db_pool;
@@ -576,13 +576,30 @@ pub async fn absen(
 
     let mut found = false;
     let mut verified_name = String::new();
+    let author_id = ctx.author().id.to_string();
 
     if let Some(arr) = members_array {
         for member in arr {
-            if let Some(name) = member["name"].as_str() {
-                if name.to_lowercase() == roblox_name.to_lowercase() {
+            let member_did = member["socials"]["discordId"].as_str().unwrap_or("");
+            let member_name = member["name"].as_str().unwrap_or("");
+            
+            // If user provided a name, check if it matches AND discord ID matches
+            if let Some(ref r_name) = roblox_name {
+                if member_name.to_lowercase() == r_name.to_lowercase() {
+                    if member_did == author_id {
+                        found = true;
+                        verified_name = member_name.to_string();
+                        break;
+                    } else {
+                        crate::utils::embeds::send_embed(ctx, "Verification Failed", &format!("Nama Roblox `{}` tidak terkait dengan akun Discord kamu di database!", r_name), 0xED4245).await?;
+                        return Ok(());
+                    }
+                }
+            } else {
+                // Auto-detect by Discord ID if no name is provided
+                if member_did == author_id {
                     found = true;
-                    verified_name = name.to_string();
+                    verified_name = member_name.to_string();
                     break;
                 }
             }
@@ -590,7 +607,11 @@ pub async fn absen(
     }
 
     if !found {
-        crate::utils::embeds::send_embed(ctx, "Attendance Failed", &format!("The Roblox name `{}` was not found in the 4FUN Clan database. Please double-check your spelling!", roblox_name), 0xED4245).await?;
+        if let Some(r_name) = roblox_name {
+            crate::utils::embeds::send_embed(ctx, "Attendance Failed", &format!("The Roblox name `{}` was not found in the 4FUN Clan database.", r_name), 0xED4245).await?;
+        } else {
+            crate::utils::embeds::send_embed(ctx, "Attendance Failed", "Akun Discord kamu tidak ditemukan di database 4FUN Clan. Silakan masukkan nama Roblox secara manual atau hubungi Admin.", 0xED4245).await?;
+        }
         return Ok(());
     }
 
@@ -598,6 +619,7 @@ pub async fn absen(
     let discord_username = ctx.author().name.clone();
 
     let res = sqlx::query("INSERT INTO khivella_absen_records (guild_id, discord_id, discord_username, roblox_name) VALUES ($1, $2, $3, $4) ON CONFLICT (guild_id, discord_id) DO UPDATE SET roblox_name = $4, timestamp = CURRENT_TIMESTAMP")
+
         .bind(guild_id.to_string())
         .bind(discord_id)
         .bind(discord_username)

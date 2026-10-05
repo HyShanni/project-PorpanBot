@@ -682,7 +682,7 @@ pub async fn autothread_list(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, default_member_permissions = "ADMINISTRATOR", check = "crate::utils::checks::is_staff", category = "Admin", subcommands("absen_manage_open", "absen_manage_close", "absen_manage_list", "absen_manage_clear", "absen_manage_setchannel"), rename = "absen_manage")]
+#[poise::command(slash_command, prefix_command, default_member_permissions = "ADMINISTRATOR", check = "crate::utils::checks::is_staff", category = "Admin", subcommands("absen_manage_open", "absen_manage_close", "absen_manage_list", "absen_manage_clear", "absen_manage_setchannel", "absen_manage_remove"), rename = "absen_manage")]
 pub async fn absen_manage(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
@@ -801,6 +801,32 @@ pub async fn absen_manage_clear(ctx: Context<'_>) -> Result<(), Error> {
         send_embed(ctx, "Attendance Cleared", "All attendance data for this month has been successfully cleared! The system is ready for the next month.", 0x2ecc71).await?;
     } else {
         send_embed(ctx, "Error", "Failed to clear attendance data.", 0xED4245).await?;
+    }
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "remove", category = "Admin")]
+pub async fn absen_manage_remove(
+    ctx: Context<'_>,
+    #[description = "User to remove from attendance"] user: serenity::model::user::User
+) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let db_pool = &ctx.data().db_pool;
+
+    let res = sqlx::query("DELETE FROM khivella_absen_records WHERE guild_id = $1 AND discord_id = $2")
+        .bind(guild_id.to_string())
+        .bind(user.id.to_string())
+        .execute(db_pool)
+        .await;
+
+    if let Ok(result) = res {
+        if result.rows_affected() > 0 {
+            send_embed(ctx, "Attendance Removed", &format!("Successfully removed {} from the attendance list.", user.name), 0x2ecc71).await?;
+        } else {
+            send_embed(ctx, "Not Found", &format!("{} hasn't recorded their attendance yet.", user.name), 0xED4245).await?;
+        }
+    } else {
+        send_embed(ctx, "Error", "Failed to remove the attendance record.", 0xED4245).await?;
     }
     Ok(())
 }
