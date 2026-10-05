@@ -22,10 +22,13 @@ pub async fn join(ctx: Context<'_>) -> Result<(), Error> {
 
     let manager = songbird::get(ctx.serenity_context()).await.unwrap().clone();
     
-    if let Ok(_handler_lock) = manager.join(guild_id, connect_to).await {
-        send_embed(ctx, "Voice Channel", &format!("Successfully connected to {}.", connect_to.mention()), 0x3498db).await?;
-    } else {
-        send_embed(ctx, "Error", "Failed to join the voice channel.", 0xED4245).await?;
+    match manager.join(guild_id, connect_to).await {
+        Ok(_) => {
+            send_embed(ctx, "Voice Channel", &format!("Successfully connected to {}.", connect_to.mention()), 0x3498db).await?;
+        },
+        Err(e) => {
+            send_embed(ctx, "Error", &format!("Failed to join the voice channel: {:?}", e), 0xED4245).await?;
+        }
     }
 
     Ok(())
@@ -97,8 +100,8 @@ pub async fn play(
         
         let metadata = match src.aux_metadata().await {
             Ok(m) => m,
-            Err(_) => {
-                send_embed(ctx, "Error", "Failed to fetch track metadata.", 0xED4245).await?;
+            Err(e) => {
+                send_embed(ctx, "Error", &format!("Failed to fetch track metadata: {:?}", e), 0xED4245).await?;
                 return Ok(());
             }
         };
