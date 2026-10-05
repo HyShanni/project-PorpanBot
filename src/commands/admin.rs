@@ -681,3 +681,103 @@ pub async fn autothread_list(ctx: Context<'_>) -> Result<(), Error> {
     }
     Ok(())
 }
+
+#[poise::command(slash_command, prefix_command, check = "crate::utils::checks::is_staff", category = "Admin", subcommands("absen_manage_open", "absen_manage_close", "absen_manage_list", "absen_manage_clear"), rename = "absen_manage")]
+pub async fn absen_manage(_ctx: Context<'_>) -> Result<(), Error> {
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "open", category = "Admin")]
+pub async fn absen_manage_open(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let db_pool = &ctx.data().db_pool;
+
+    let res = sqlx::query("INSERT INTO khivella_absen_state (guild_id, is_open) VALUES ($1, TRUE) ON CONFLICT (guild_id) DO UPDATE SET is_open = TRUE")
+        .bind(guild_id.to_string())
+        .execute(db_pool)
+        .await;
+
+    if res.is_ok() {
+        send_embed(ctx, "Absen Dibuka", "Sistem absen bulanan sekarang **DIBUKA**. Member sudah bisa memakai command `/absen`.", 0x2ecc71).await?;
+    } else {
+        send_embed(ctx, "Error", "Gagal membuka sistem absen.", 0xED4245).await?;
+    }
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "close", category = "Admin")]
+pub async fn absen_manage_close(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let db_pool = &ctx.data().db_pool;
+
+    let res = sqlx::query("INSERT INTO khivella_absen_state (guild_id, is_open) VALUES ($1, FALSE) ON CONFLICT (guild_id) DO UPDATE SET is_open = FALSE")
+        .bind(guild_id.to_string())
+        .execute(db_pool)
+        .await;
+
+    if res.is_ok() {
+        send_embed(ctx, "Absen Ditutup", "Sistem absen bulanan sekarang **DITUTUP**. Member sudah tidak bisa absen.", 0xED4245).await?;
+    } else {
+        send_embed(ctx, "Error", "Gagal menutup sistem absen.", 0xED4245).await?;
+    }
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "list", category = "Admin")]
+pub async fn absen_manage_list(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let db_pool = &ctx.data().db_pool;
+
+    let rows = sqlx::query("SELECT discord_username, roblox_name, timestamp FROM khivella_absen_records WHERE guild_id = $1 ORDER BY timestamp ASC")
+        .bind(guild_id.to_string())
+        .fetch_all(db_pool)
+        .await;
+
+    match rows {
+        Ok(results) => {
+            if results.is_empty() {
+                send_embed(ctx, "Data Absen", "Belum ada member yang melakukan absen.", 0x3498db).await?;
+                return Ok(());
+            }
+
+            let mut desc = String::new();
+            use sqlx::Row;
+            for (i, r) in results.iter().enumerate() {
+                let discord_username: String = r.get("discord_username");
+                let roblox_name: String = r.get("roblox_name");
+                
+                let line = format!("{}. **{}** (`@{}`)\n", i + 1, roblox_name, discord_username);
+                
+                // Keep it under embed limits
+                if desc.len() + line.len() > 3900 {
+                    desc.push_str("...dan lainnya.");
+                    break;
+                }
+                desc.push_str(&line);
+            }
+            send_embed(ctx, format!("Data Absen (Total: {})", results.len()).as_str(), &desc, 0x3498db).await?;
+        },
+        Err(e) => {
+            send_embed(ctx, "Error", &format!("Gagal mengambil data absen: {}", e), 0xED4245).await?;
+        }
+    }
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "clear", category = "Admin")]
+pub async fn absen_manage_clear(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let db_pool = &ctx.data().db_pool;
+
+    let res = sqlx::query("DELETE FROM khivella_absen_records WHERE guild_id = $1")
+        .bind(guild_id.to_string())
+        .execute(db_pool)
+        .await;
+
+    if res.is_ok() {
+        send_embed(ctx, "Data Absen Dihapus", "Semua data absen bulan ini berhasil dibersihkan! Sistem siap digunakan untuk bulan depan.", 0x2ecc71).await?;
+    } else {
+        send_embed(ctx, "Error", "Gagal membersihkan data absen.", 0xED4245).await?;
+    }
+    Ok(())
+}

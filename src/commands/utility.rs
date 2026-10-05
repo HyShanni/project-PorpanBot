@@ -541,3 +541,73 @@ pub async fn members(ctx: Context<'_>) -> Result<(), Error> {
     
     Ok(())
 }
+
+#[poise::command(slash_command, prefix_command, category = "Utility")]
+pub async fn absen(
+    ctx: Context<'_>,
+    #[description = "Your Roblox Display Name"] roblox_name: String,
+) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let db_pool = &ctx.data().db_pool;
+
+    let state_row = sqlx::query("SELECT is_open FROM khivella_absen_state WHERE guild_id = $1")
+        .bind(guild_id.to_string())
+        .fetch_optional(db_pool)
+        .await;
+
+    let is_open = match state_row {
+        Ok(Some(row)) => {
+            use sqlx::Row;
+            row.get::<bool, _>("is_open")
+        },
+        _ => false,
+    };
+
+    if !is_open {
+        crate::utils::embeds::send_embed(ctx, "Sistem Absen Ditutup", "Maaf sayang, sesi absen saat ini sedang ditutup. Tunggu instruksi Admin ya!", 0xED4245).await?;
+        return Ok(());
+    }
+
+    let json_data = ctx.data().clan_data.read().await;
+    let parsed: serde_json::Value = serde_json::from_str(&json_data).unwrap_or(serde_json::Value::Null);
+    let members_array = parsed["data"].as_array();
+
+    let mut found = false;
+    let mut verified_name = String::new();
+
+    if let Some(arr) = members_array {
+        for member in arr {
+            if let Some(name) = member["name"].as_str() {
+                if name.to_lowercase() == roblox_name.to_lowercase() {
+                    found = true;
+                    verified_name = name.to_string();
+                    break;
+                }
+            }
+        }
+    }
+
+    if !found {
+        crate::utils::embeds::send_embed(ctx, "Absen Gagal", &format!("Nama Roblox `{}` nggak ditemuin di data website 4FUN Clan. Coba cek lagi ejaannya sayang!", roblox_name), 0xED4245).await?;
+        return Ok(());
+    }
+
+    let discord_id = ctx.author().id.to_string();
+    let discord_username = ctx.author().name.clone();
+
+    let res = sqlx::query("INSERT INTO khivella_absen_records (guild_id, discord_id, discord_username, roblox_name) VALUES ($1, $2, $3, $4) ON CONFLICT (guild_id, discord_id) DO UPDATE SET roblox_name = $4, timestamp = CURRENT_TIMESTAMP")
+        .bind(guild_id.to_string())
+        .bind(discord_id)
+        .bind(discord_username)
+        .bind(verified_name.clone())
+        .execute(db_pool)
+        .await;
+
+    if res.is_ok() {
+        crate::utils::embeds::send_embed(ctx, "Absen Berhasil!", &format!("Makasih udah absen! Data kamu berhasil dicatat:\n\n**Roblox:** `{}`\n**Discord:** <@{}>", verified_name, ctx.author().id), 0x2ecc71).await?;
+    } else {
+        crate::utils::embeds::send_embed(ctx, "Error", "Gagal nyatet absen kamu di database. Coba lapor Admin ya!", 0xED4245).await?;
+    }
+
+    Ok(())
+}
