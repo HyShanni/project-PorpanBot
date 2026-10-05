@@ -145,8 +145,6 @@ pub async fn sudo(
 
     if let Err(e) = channel.say(ctx.http(), &message).await {
         send_embed(ctx, "Error", &format!("Gagal mengirim pesan: {}", e), 0xED4245).await?;
-    } else {
-        let _ = ctx.send(poise::CreateReply::default().content(format!("✅ Pesan berhasil dikirim ke <#{}>", channel.get())).ephemeral(true)).await;
     }
     
     Ok(())
