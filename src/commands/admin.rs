@@ -6,7 +6,7 @@ use serenity::model::{
 };
 use serenity::builder::EditChannel;
 
-#[poise::command(slash_command, prefix_command, required_permissions = "MANAGE_CHANNELS", category = "Admin")]
+#[poise::command(slash_command, prefix_command, default_member_permissions = "MANAGE_CHANNELS", required_permissions = "MANAGE_CHANNELS", category = "Admin")]
 pub async fn lock(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap();
     let everyone_role_id = serenity::model::id::RoleId::new(guild_id.get());
@@ -34,7 +34,7 @@ pub async fn lock(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, required_permissions = "MANAGE_CHANNELS", category = "Admin")]
+#[poise::command(slash_command, prefix_command, default_member_permissions = "MANAGE_CHANNELS", required_permissions = "MANAGE_CHANNELS", category = "Admin")]
 pub async fn unlock(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap();
     let everyone_role_id = serenity::model::id::RoleId::new(guild_id.get());
@@ -55,7 +55,7 @@ pub async fn unlock(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, required_permissions = "MANAGE_CHANNELS", category = "Admin")]
+#[poise::command(slash_command, prefix_command, default_member_permissions = "MANAGE_CHANNELS", required_permissions = "MANAGE_CHANNELS", category = "Admin")]
 pub async fn slowmode(
     ctx: Context<'_>, 
     #[description = "Duration in seconds (0 to disable)"] seconds: u16
@@ -88,7 +88,7 @@ pub async fn slowmode(
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, check = "crate::utils::checks::is_staff", category = "Admin")]
+#[poise::command(slash_command, prefix_command, default_member_permissions = "ADMINISTRATOR", check = "crate::utils::checks::is_staff", category = "Admin")]
 pub async fn chatbot(
     ctx: Context<'_>, 
     #[description = "Action: 'enable' or 'disable'"] action: String
@@ -108,7 +108,7 @@ pub async fn chatbot(
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, check = "crate::utils::checks::is_staff", category = "Admin")]
+#[poise::command(slash_command, prefix_command, default_member_permissions = "ADMINISTRATOR", check = "crate::utils::checks::is_staff", category = "Admin")]
 pub async fn status(
     ctx: Context<'_>, 
     #[description = "Type: 'playing', 'watching', 'listening', 'competing'"] activity_type: String,
@@ -133,7 +133,7 @@ pub async fn status(
 
 use sqlx::Row;
 
-#[poise::command(slash_command, prefix_command, category = "Admin", required_permissions = "MANAGE_GUILD", check = "crate::utils::checks::is_staff", subcommands("add_autoreply", "list_autoreplies", "remove_autoreply"))]
+#[poise::command(slash_command, prefix_command, category = "Admin", default_member_permissions = "ADMINISTRATOR", required_permissions = "MANAGE_GUILD", check = "crate::utils::checks::is_staff", subcommands("add_autoreply", "list_autoreplies", "remove_autoreply"))]
 pub async fn autoreply(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
@@ -276,7 +276,7 @@ pub async fn remove_autoreply(
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, category = "Admin", required_permissions = "MANAGE_GUILD", check = "crate::utils::checks::is_staff", subcommands("booster_background", "booster_channel", "booster_style", "booster_test", "booster_text"))]
+#[poise::command(slash_command, prefix_command, category = "Admin", default_member_permissions = "ADMINISTRATOR", required_permissions = "MANAGE_GUILD", check = "crate::utils::checks::is_staff", subcommands("booster_background", "booster_channel", "booster_style", "booster_test", "booster_text"))]
 pub async fn booster(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
@@ -389,7 +389,7 @@ pub async fn booster_test(
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, category = "Admin", required_permissions = "MANAGE_MESSAGES", check = "crate::utils::checks::is_staff", subcommands("sticky_set", "sticky_remove", "sticky_list"))]
+#[poise::command(slash_command, prefix_command, category = "Admin", default_member_permissions = "ADMINISTRATOR", required_permissions = "MANAGE_MESSAGES", check = "crate::utils::checks::is_staff", subcommands("sticky_set", "sticky_remove", "sticky_list"))]
 pub async fn sticky(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
@@ -460,7 +460,7 @@ pub async fn sticky_list(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, category = "Admin", required_permissions = "ADMINISTRATOR", check = "crate::utils::checks::is_staff")]
+#[poise::command(slash_command, prefix_command, category = "Admin", default_member_permissions = "ADMINISTRATOR", required_permissions = "ADMINISTRATOR", check = "crate::utils::checks::is_staff")]
 pub async fn restart(ctx: Context<'_>) -> Result<(), Error> {
     let msg = "Memulai proses *reboot* sistem secara paksa. Porpan akan offline sejenak dan secara otomatis menyala kembali melalui protokol *auto-recovery* Railway.\n\nHarap tunggu beberapa saat...";
     send_embed(ctx, "System Reboot Initiated", msg, 0xef4444).await?;
@@ -475,7 +475,7 @@ struct RobloxUserRequest {
     exclude_banned_users: bool,
 }
 
-#[poise::command(slash_command, prefix_command, category = "Admin", check = "crate::utils::checks::is_staff", aliases("checkname"))]
+#[poise::command(slash_command, prefix_command, category = "Admin", default_member_permissions = "ADMINISTRATOR", check = "crate::utils::checks::is_staff", aliases("checkname"))]
 pub async fn checknames(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer().await?;
     
@@ -682,7 +682,7 @@ pub async fn autothread_list(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, check = "crate::utils::checks::is_staff", category = "Admin", subcommands("absen_manage_open", "absen_manage_close", "absen_manage_list", "absen_manage_clear", "absen_manage_setchannel"), rename = "absen_manage")]
+#[poise::command(slash_command, prefix_command, default_member_permissions = "ADMINISTRATOR", check = "crate::utils::checks::is_staff", category = "Admin", subcommands("absen_manage_open", "absen_manage_close", "absen_manage_list", "absen_manage_clear", "absen_manage_setchannel"), rename = "absen_manage")]
 pub async fn absen_manage(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
@@ -805,7 +805,7 @@ pub async fn absen_manage_clear(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, check = "crate::utils::checks::is_staff", category = "Admin", subcommands("bday_manage_setchannel"), rename = "bday_manage")]
+#[poise::command(slash_command, prefix_command, default_member_permissions = "ADMINISTRATOR", check = "crate::utils::checks::is_staff", category = "Admin", subcommands("bday_manage_setchannel"), rename = "bday_manage")]
 pub async fn bday_manage(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }

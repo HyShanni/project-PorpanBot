@@ -214,39 +214,6 @@ pub async fn help(
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, category = "Utility", subcommands("grab_sticker", "grab_emoji", "grab_image"))]
-pub async fn grab(_ctx: Context<'_>) -> Result<(), Error> {
-    Ok(())
-}
-
-#[poise::command(slash_command, prefix_command, rename = "sticker", required_permissions = "MANAGE_EMOJIS_AND_STICKERS")]
-pub async fn grab_sticker(
-    ctx: Context<'_>,
-    #[description = "Sticker ID to grab"] sticker_id: String,
-) -> Result<(), Error> {
-    send_embed(ctx, "Grab", &format!("Sticker grab logic not fully implemented yet for ID: {}", sticker_id), 0x2b2d31).await?;
-    Ok(())
-}
-
-#[poise::command(slash_command, prefix_command, rename = "emoji", required_permissions = "MANAGE_EMOJIS_AND_STICKERS")]
-pub async fn grab_emoji(
-    ctx: Context<'_>,
-    #[description = "Emoji to grab (custom emoji format)"] emoji: String,
-) -> Result<(), Error> {
-    send_embed(ctx, "Grab", &format!("Emoji grab logic not fully implemented yet for: {}", emoji), 0x2b2d31).await?;
-    Ok(())
-}
-
-#[poise::command(slash_command, prefix_command, rename = "image", required_permissions = "MANAGE_EMOJIS_AND_STICKERS")]
-pub async fn grab_image(
-    ctx: Context<'_>,
-    #[description = "ID of the message containing the image"] message_id: String,
-    #[description = "Name for the new sticker (max 30 chars)"] name: Option<String>,
-) -> Result<(), Error> {
-    send_embed(ctx, "Grab", &format!("Image grab logic not fully implemented yet for msg: {}", message_id), 0x2b2d31).await?;
-    Ok(())
-}
-
 #[poise::command(slash_command, prefix_command, category = "Utility")]
 pub async fn report(
     ctx: Context<'_>,
@@ -299,17 +266,17 @@ pub async fn stats(ctx: Context<'_>) -> Result<(), Error> {
 
 #[poise::command(slash_command, prefix_command, category = "Utility")]
 pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
-    let description = "Porpan adalah asisten virtual resmi yang dikembangkan eksklusif untuk Clan 4FUN.\n\n\
-    Beroperasi sebagai penjaga server utama, Porpan bertanggung jawab atas manajemen member, pengecekan data Roblox, dan memastikan kenyamanan komunitas.\n\n\
-    Selain tugas teknisnya, Porpan hadir sebagai teman yang ramah, asik diajak ngobrol, dan siap menemani keseharian para member 4FUN.";
+    let description = "Halo! Aku Mbak Porpan, bestie sekaligus core member yang ditugasin buat jagain Clan 4FUN. 💅✨\n\n\
+    Tugasku di sini mastiin server kita tetep rapi, mulai dari ngurusin member baru, ngecek absen, sampai muterin lagu kesukaan kalian di voice channel.\n\n\
+    Tapi santai aja, aku bukan sekadar bot kaku kok! Aku juga di sini buat nemenin kalian ngobrol, dengerin curhat, atau sekadar seru-seruan bareng member 4FUN lainnya. Feel free to say hi! 🥰";
     let bot_id = ctx.cache().current_user().id;
 
     let mut embed = serenity::builder::CreateEmbed::new()
-        .title("Porpan")
+        .title("Mbak Porpan")
         .color(0xef4444)
         .description(description)
-        .field("Identitas", "AI Assistant", true)
-        .field("Lokasi Sistem", "Surabaya, Indonesia", true)
+        .field("Identitas", "Core Member", true)
+        .field("Lokasi Nongkrong", "Surabaya, Indonesia", true)
         .footer(serenity::builder::CreateEmbedFooter::new("Porpan Core Engine • v1.0.0"));
 
     if let Ok(user) = bot_id.to_user(ctx.http()).await {
@@ -605,7 +572,7 @@ pub async fn absen(
 
     let json_data = ctx.data().clan_data.read().await;
     let parsed: serde_json::Value = serde_json::from_str(&json_data).unwrap_or(serde_json::Value::Null);
-    let members_array = parsed.as_array();
+    let members_array = parsed.as_array().or_else(|| parsed["members"].as_array());
 
     let mut found = false;
     let mut verified_name = String::new();

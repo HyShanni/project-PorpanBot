@@ -4,7 +4,7 @@ use serenity::model::user::User;
 use serenity::builder::GetMessages;
 use crate::services::moderation::ModerationService;
 
-#[poise::command(slash_command, prefix_command, required_permissions = "KICK_MEMBERS", category = "Moderation")]
+#[poise::command(slash_command, prefix_command, default_member_permissions = "KICK_MEMBERS", required_permissions = "KICK_MEMBERS", category = "Moderation")]
 pub async fn kick(
     ctx: Context<'_>, 
     #[description = "User to kick"] user: User,
@@ -25,7 +25,7 @@ pub async fn kick(
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, required_permissions = "BAN_MEMBERS", category = "Moderation")]
+#[poise::command(slash_command, prefix_command, default_member_permissions = "BAN_MEMBERS", required_permissions = "BAN_MEMBERS", category = "Moderation")]
 pub async fn ban(
     ctx: Context<'_>, 
     #[description = "User to ban"] user: User,
@@ -46,7 +46,7 @@ pub async fn ban(
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, required_permissions = "BAN_MEMBERS", category = "Moderation")]
+#[poise::command(slash_command, prefix_command, default_member_permissions = "BAN_MEMBERS", required_permissions = "BAN_MEMBERS", category = "Moderation")]
 pub async fn unban(
     ctx: Context<'_>, 
     #[description = "ID of user to unban"] user_id: u64
@@ -65,7 +65,7 @@ pub async fn unban(
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, required_permissions = "MANAGE_MESSAGES", category = "Moderation")]
+#[poise::command(slash_command, prefix_command, default_member_permissions = "MANAGE_MESSAGES", required_permissions = "MANAGE_MESSAGES", category = "Moderation")]
 pub async fn purge(
     ctx: Context<'_>, 
     #[description = "Number of messages to delete (1-100)"] amount: u8
@@ -107,7 +107,7 @@ pub async fn purge(
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, required_permissions = "MODERATE_MEMBERS", category = "Moderation")]
+#[poise::command(slash_command, prefix_command, default_member_permissions = "MODERATE_MEMBERS", required_permissions = "MODERATE_MEMBERS", category = "Moderation")]
 pub async fn timeout(
     ctx: Context<'_>, 
     #[description = "User to timeout"] user: User,
@@ -131,7 +131,7 @@ pub async fn timeout(
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, required_permissions = "MODERATE_MEMBERS", category = "Moderation")]
+#[poise::command(slash_command, prefix_command, default_member_permissions = "MODERATE_MEMBERS", required_permissions = "MODERATE_MEMBERS", category = "Moderation")]
 pub async fn warn(
     ctx: Context<'_>, 
     #[description = "User to warn"] user: User,
@@ -153,7 +153,7 @@ pub async fn warn(
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, required_permissions = "MODERATE_MEMBERS", category = "Moderation")]
+#[poise::command(slash_command, prefix_command, default_member_permissions = "MODERATE_MEMBERS", required_permissions = "MODERATE_MEMBERS", category = "Moderation")]
 pub async fn strike(
     ctx: Context<'_>, 
     #[description = "User to strike"] user: User,

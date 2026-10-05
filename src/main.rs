@@ -243,7 +243,7 @@ async fn main() {
                 lock(), unlock(), slowmode(), chatbot(), status(), autoreply(),
                 booster(), sticky(), restart(), checknames(), autothread(),
                 ping(), userinfo(), serverinfo(), avatar(), help(),
-                grab(), report(), stats(), about(), profile(), members(),
+                report(), stats(), about(), profile(), members(),
                 absen(), absen_manage(), bday(), bday_manage(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
