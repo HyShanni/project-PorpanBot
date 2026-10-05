@@ -173,6 +173,31 @@ async fn main() {
     });
 
     sqlx::query(
+        "CREATE TABLE IF NOT EXISTS khivella_ffevent_state (
+            guild_id TEXT PRIMARY KEY,
+            is_open BOOLEAN NOT NULL DEFAULT FALSE,
+            channel_id TEXT
+        );"
+    ).execute(&pool).await.unwrap_or_else(|e| {
+        error!("Failed to initialize khivella_ffevent_state table: {:?}", e);
+        Default::default()
+    });
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS khivella_ffevent_records (
+            guild_id TEXT NOT NULL,
+            discord_id TEXT NOT NULL,
+            discord_username TEXT NOT NULL,
+            roblox_name TEXT NOT NULL,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(guild_id, discord_id)
+        );"
+    ).execute(&pool).await.unwrap_or_else(|e| {
+        error!("Failed to initialize khivella_ffevent_records table: {:?}", e);
+        Default::default()
+    });
+
+    sqlx::query(
         "CREATE TABLE IF NOT EXISTS khivella_birthdays (
             guild_id TEXT NOT NULL,
             discord_id TEXT NOT NULL,
@@ -244,7 +269,7 @@ async fn main() {
                 booster(), sticky(), restart(), checknames(), autothread(),
                 ping(), userinfo(), serverinfo(), avatar(), help(),
                 report(), stats(), about(), profile(), members(),
-                absen(), absen_manage(), bday(), bday_manage(),
+                absen(), absen_manage(), bday(), bday_manage(), ffevent(), ffevent_manage(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some("ff".into()),

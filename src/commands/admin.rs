@@ -858,3 +858,161 @@ pub async fn bday_manage_setchannel(
     }
     Ok(())
 }
+
+#[poise::command(
+    slash_command, 
+    prefix_command, 
+    rename = "ffevent_manage", 
+    category = "Admin",
+    default_member_permissions = "ADMINISTRATOR",
+    check = "crate::utils::checks::is_staff",
+    subcommands("ffevent_manage_open", "ffevent_manage_close", "ffevent_manage_list", "ffevent_manage_clear", "ffevent_manage_setchannel", "ffevent_manage_remove")
+)]
+pub async fn ffevent_manage(_ctx: Context<'_>) -> Result<(), Error> {
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "setchannel", category = "Admin")]
+pub async fn ffevent_manage_setchannel(
+    ctx: Context<'_>, 
+    #[description = "Target channel"] channel: serenity::model::channel::Channel
+) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let channel_id = channel.id();
+    let db_pool = &ctx.data().db_pool;
+
+    let res = sqlx::query("INSERT INTO khivella_ffevent_state (guild_id, channel_id) VALUES ($1, $2) ON CONFLICT (guild_id) DO UPDATE SET channel_id = $2")
+        .bind(guild_id.to_string())
+        .bind(channel_id.to_string())
+        .execute(db_pool)
+        .await;
+
+    if res.is_ok() {
+        send_embed(ctx, "Event Channel Set", &format!("Event join command is now restricted to <#{}>.", channel_id), 0x2ecc71).await?;
+    } else {
+        send_embed(ctx, "Error", "Failed to set event channel.", 0xED4245).await?;
+    }
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "open", category = "Admin")]
+pub async fn ffevent_manage_open(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let db_pool = &ctx.data().db_pool;
+
+    let res = sqlx::query("INSERT INTO khivella_ffevent_state (guild_id, is_open) VALUES ($1, TRUE) ON CONFLICT (guild_id) DO UPDATE SET is_open = TRUE")
+        .bind(guild_id.to_string())
+        .execute(db_pool)
+        .await;
+
+    if res.is_ok() {
+        send_embed(ctx, "Event Registration Opened", "The event registration is now **OPEN**. Members can now use the `/ffevent join` command.", 0x2ecc71).await?;
+    } else {
+        send_embed(ctx, "Error", "Failed to open the event system.", 0xED4245).await?;
+    }
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "close", category = "Admin")]
+pub async fn ffevent_manage_close(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let db_pool = &ctx.data().db_pool;
+
+    let res = sqlx::query("INSERT INTO khivella_ffevent_state (guild_id, is_open) VALUES ($1, FALSE) ON CONFLICT (guild_id) DO UPDATE SET is_open = FALSE")
+        .bind(guild_id.to_string())
+        .execute(db_pool)
+        .await;
+
+    if res.is_ok() {
+        send_embed(ctx, "Event Registration Closed", "The event registration is now **CLOSED**. Members can no longer join the event.", 0xED4245).await?;
+    } else {
+        send_embed(ctx, "Error", "Failed to close the event system.", 0xED4245).await?;
+    }
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "list", category = "Admin")]
+pub async fn ffevent_manage_list(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let db_pool = &ctx.data().db_pool;
+
+    let rows = sqlx::query("SELECT discord_username, roblox_name, timestamp FROM khivella_ffevent_records WHERE guild_id = $1 ORDER BY timestamp ASC")
+        .bind(guild_id.to_string())
+        .fetch_all(db_pool)
+        .await;
+
+    match rows {
+        Ok(results) => {
+            if results.is_empty() {
+                send_embed(ctx, "Event Data", "No members have registered for the event yet.", 0x3498db).await?;
+                return Ok(());
+            }
+
+            let mut desc = String::new();
+            use sqlx::Row;
+            for (i, r) in results.iter().enumerate() {
+                let discord_username: String = r.get("discord_username");
+                let roblox_name: String = r.get("roblox_name");
+                
+                let line = format!("{}. **{}** (`@{}`)\n", i + 1, roblox_name, discord_username);
+                
+                // Keep it under embed limits
+                if desc.len() + line.len() > 3900 {
+                    desc.push_str("...and more.");
+                    break;
+                }
+                desc.push_str(&line);
+            }
+            send_embed(ctx, format!("Event Registration Data (Total: {})", results.len()).as_str(), &desc, 0x3498db).await?;
+        },
+        Err(e) => {
+            send_embed(ctx, "Error", &format!("Failed to fetch event data: {}", e), 0xED4245).await?;
+        }
+    }
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "clear", category = "Admin")]
+pub async fn ffevent_manage_clear(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let db_pool = &ctx.data().db_pool;
+
+    let res = sqlx::query("DELETE FROM khivella_ffevent_records WHERE guild_id = $1")
+        .bind(guild_id.to_string())
+        .execute(db_pool)
+        .await;
+
+    if res.is_ok() {
+        send_embed(ctx, "Event Data Cleared", "All event registration data has been successfully cleared.", 0x2ecc71).await?;
+    } else {
+        send_embed(ctx, "Error", "Failed to clear event data.", 0xED4245).await?;
+    }
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "remove", category = "Admin")]
+pub async fn ffevent_manage_remove(
+    ctx: Context<'_>, 
+    #[description = "User to remove from event"] user: serenity::model::user::User
+) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let user_id = user.id;
+    let db_pool = &ctx.data().db_pool;
+
+    let res = sqlx::query("DELETE FROM khivella_ffevent_records WHERE guild_id = $1 AND discord_id = $2")
+        .bind(guild_id.to_string())
+        .bind(user_id.to_string())
+        .execute(db_pool)
+        .await;
+
+    if let Ok(result) = res {
+        if result.rows_affected() > 0 {
+            send_embed(ctx, "User Removed", &format!("Successfully removed <@{}> from the event registration.", user_id), 0x2ecc71).await?;
+        } else {
+            send_embed(ctx, "Not Found", &format!("<@{}> hasn't registered for the event yet.", user_id), 0xED4245).await?;
+        }
+    } else {
+        send_embed(ctx, "Error", "Failed to remove user from event data.", 0xED4245).await?;
+    }
+    Ok(())
+}
