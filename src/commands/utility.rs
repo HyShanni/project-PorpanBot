@@ -550,22 +550,31 @@ pub async fn absen(
     let guild_id = ctx.guild_id().unwrap();
     let db_pool = &ctx.data().db_pool;
 
-    let state_row = sqlx::query("SELECT is_open FROM khivella_absen_state WHERE guild_id = $1")
+    let state_row = sqlx::query("SELECT is_open, channel_id FROM khivella_absen_state WHERE guild_id = $1")
         .bind(guild_id.to_string())
         .fetch_optional(db_pool)
         .await;
 
-    let is_open = match state_row {
+    let (is_open, target_channel_id) = match state_row {
         Ok(Some(row)) => {
             use sqlx::Row;
-            row.get::<bool, _>("is_open")
+            let open = row.get::<bool, _>("is_open");
+            let cid: Option<String> = row.try_get("channel_id").unwrap_or(None);
+            (open, cid)
         },
-        _ => false,
+        _ => (false, None),
     };
 
     if !is_open {
-        crate::utils::embeds::send_embed(ctx, "Sistem Absen Ditutup", "Maaf sayang, sesi absen saat ini sedang ditutup. Tunggu instruksi Admin ya!", 0xED4245).await?;
+        crate::utils::embeds::send_embed(ctx, "Attendance Closed", "Sorry! The monthly attendance session is currently closed. Please wait for an admin to open it.", 0xED4245).await?;
         return Ok(());
+    }
+
+    if let Some(required_channel) = target_channel_id {
+        if ctx.channel_id().to_string() != required_channel {
+            crate::utils::embeds::send_embed(ctx, "Invalid Channel", &format!("You can only record your attendance in <#{}>.", required_channel), 0xED4245).await?;
+            return Ok(());
+        }
     }
 
     let json_data = ctx.data().clan_data.read().await;
@@ -588,7 +597,7 @@ pub async fn absen(
     }
 
     if !found {
-        crate::utils::embeds::send_embed(ctx, "Absen Gagal", &format!("Nama Roblox `{}` nggak ditemuin di data website 4FUN Clan. Coba cek lagi ejaannya sayang!", roblox_name), 0xED4245).await?;
+        crate::utils::embeds::send_embed(ctx, "Attendance Failed", &format!("The Roblox name `{}` was not found in the 4FUN Clan database. Please double-check your spelling!", roblox_name), 0xED4245).await?;
         return Ok(());
     }
 
@@ -604,9 +613,9 @@ pub async fn absen(
         .await;
 
     if res.is_ok() {
-        crate::utils::embeds::send_embed(ctx, "Absen Berhasil!", &format!("Makasih udah absen! Data kamu berhasil dicatat:\n\n**Roblox:** `{}`\n**Discord:** <@{}>", verified_name, ctx.author().id), 0x2ecc71).await?;
+        crate::utils::embeds::send_embed(ctx, "Attendance Recorded!", &format!("Thank you! Your attendance has been successfully recorded:\n\n**Roblox:** `{}`\n**Discord:** <@{}>", verified_name, ctx.author().id), 0x2ecc71).await?;
     } else {
-        crate::utils::embeds::send_embed(ctx, "Error", "Gagal nyatet absen kamu di database. Coba lapor Admin ya!", 0xED4245).await?;
+        crate::utils::embeds::send_embed(ctx, "Error", "Failed to save your attendance in the database. Please report this to an Admin.", 0xED4245).await?;
     }
 
     Ok(())

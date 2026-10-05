@@ -682,8 +682,31 @@ pub async fn autothread_list(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, check = "crate::utils::checks::is_staff", category = "Admin", subcommands("absen_manage_open", "absen_manage_close", "absen_manage_list", "absen_manage_clear"), rename = "absen_manage")]
+#[poise::command(slash_command, prefix_command, check = "crate::utils::checks::is_staff", category = "Admin", subcommands("absen_manage_open", "absen_manage_close", "absen_manage_list", "absen_manage_clear", "absen_manage_setchannel"), rename = "absen_manage")]
 pub async fn absen_manage(_ctx: Context<'_>) -> Result<(), Error> {
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "setchannel", category = "Admin")]
+pub async fn absen_manage_setchannel(
+    ctx: Context<'_>, 
+    #[description = "Target channel"] channel: serenity::model::channel::Channel
+) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let channel_id = channel.id();
+    let db_pool = &ctx.data().db_pool;
+
+    let res = sqlx::query("INSERT INTO khivella_absen_state (guild_id, channel_id) VALUES ($1, $2) ON CONFLICT (guild_id) DO UPDATE SET channel_id = $2")
+        .bind(guild_id.to_string())
+        .bind(channel_id.to_string())
+        .execute(db_pool)
+        .await;
+
+    if res.is_ok() {
+        send_embed(ctx, "Attendance Channel Set", &format!("Attendance command is now restricted to <#{}>.", channel_id), 0x2ecc71).await?;
+    } else {
+        send_embed(ctx, "Error", "Failed to set attendance channel.", 0xED4245).await?;
+    }
     Ok(())
 }
 
@@ -698,9 +721,9 @@ pub async fn absen_manage_open(ctx: Context<'_>) -> Result<(), Error> {
         .await;
 
     if res.is_ok() {
-        send_embed(ctx, "Absen Dibuka", "Sistem absen bulanan sekarang **DIBUKA**. Member sudah bisa memakai command `/absen`.", 0x2ecc71).await?;
+        send_embed(ctx, "Attendance Opened", "The monthly attendance is now **OPEN**. Members can now use the `/absen` command.", 0x2ecc71).await?;
     } else {
-        send_embed(ctx, "Error", "Gagal membuka sistem absen.", 0xED4245).await?;
+        send_embed(ctx, "Error", "Failed to open the attendance system.", 0xED4245).await?;
     }
     Ok(())
 }
@@ -716,9 +739,9 @@ pub async fn absen_manage_close(ctx: Context<'_>) -> Result<(), Error> {
         .await;
 
     if res.is_ok() {
-        send_embed(ctx, "Absen Ditutup", "Sistem absen bulanan sekarang **DITUTUP**. Member sudah tidak bisa absen.", 0xED4245).await?;
+        send_embed(ctx, "Attendance Closed", "The monthly attendance is now **CLOSED**. Members can no longer record their attendance.", 0xED4245).await?;
     } else {
-        send_embed(ctx, "Error", "Gagal menutup sistem absen.", 0xED4245).await?;
+        send_embed(ctx, "Error", "Failed to close the attendance system.", 0xED4245).await?;
     }
     Ok(())
 }
@@ -736,7 +759,7 @@ pub async fn absen_manage_list(ctx: Context<'_>) -> Result<(), Error> {
     match rows {
         Ok(results) => {
             if results.is_empty() {
-                send_embed(ctx, "Data Absen", "Belum ada member yang melakukan absen.", 0x3498db).await?;
+                send_embed(ctx, "Attendance Data", "No members have recorded their attendance yet.", 0x3498db).await?;
                 return Ok(());
             }
 
@@ -750,15 +773,15 @@ pub async fn absen_manage_list(ctx: Context<'_>) -> Result<(), Error> {
                 
                 // Keep it under embed limits
                 if desc.len() + line.len() > 3900 {
-                    desc.push_str("...dan lainnya.");
+                    desc.push_str("...and more.");
                     break;
                 }
                 desc.push_str(&line);
             }
-            send_embed(ctx, format!("Data Absen (Total: {})", results.len()).as_str(), &desc, 0x3498db).await?;
+            send_embed(ctx, format!("Attendance Data (Total: {})", results.len()).as_str(), &desc, 0x3498db).await?;
         },
         Err(e) => {
-            send_embed(ctx, "Error", &format!("Gagal mengambil data absen: {}", e), 0xED4245).await?;
+            send_embed(ctx, "Error", &format!("Failed to fetch attendance data: {}", e), 0xED4245).await?;
         }
     }
     Ok(())
@@ -775,9 +798,9 @@ pub async fn absen_manage_clear(ctx: Context<'_>) -> Result<(), Error> {
         .await;
 
     if res.is_ok() {
-        send_embed(ctx, "Data Absen Dihapus", "Semua data absen bulan ini berhasil dibersihkan! Sistem siap digunakan untuk bulan depan.", 0x2ecc71).await?;
+        send_embed(ctx, "Attendance Cleared", "All attendance data for this month has been successfully cleared! The system is ready for the next month.", 0x2ecc71).await?;
     } else {
-        send_embed(ctx, "Error", "Gagal membersihkan data absen.", 0xED4245).await?;
+        send_embed(ctx, "Error", "Failed to clear attendance data.", 0xED4245).await?;
     }
     Ok(())
 }

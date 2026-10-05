@@ -147,12 +147,16 @@ async fn main() {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS khivella_absen_state (
             guild_id TEXT PRIMARY KEY,
-            is_open BOOLEAN NOT NULL DEFAULT FALSE
+            is_open BOOLEAN NOT NULL DEFAULT FALSE,
+            channel_id TEXT
         );"
     ).execute(&pool).await.unwrap_or_else(|e| {
         error!("Failed to initialize khivella_absen_state table: {:?}", e);
         Default::default()
     });
+
+    // Add column if it didn't exist in older versions
+    let _ = sqlx::query("ALTER TABLE khivella_absen_state ADD COLUMN channel_id TEXT").execute(&pool).await;
 
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS khivella_absen_records (
