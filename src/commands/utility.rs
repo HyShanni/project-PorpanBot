@@ -133,15 +133,26 @@ pub async fn avatar(
 }
 
 #[poise::command(slash_command, prefix_command, category = "Utility", track_edits)]
-pub async fn help(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn help(
+    ctx: Context<'_>, 
+    #[description = "Type 'all' to see all commands including Admin commands"] scope: Option<String>
+) -> Result<(), Error> {
     let commands = &ctx.framework().options().commands;
+    let show_all = scope.as_deref() == Some("all");
     
     let mut total_commands = 0;
     let mut categories: std::collections::HashMap<&str, Vec<String>> = std::collections::HashMap::new();
     
     for cmd in commands {
         if cmd.hide_in_help { continue; }
+        
         let category = cmd.category.as_deref().unwrap_or("Uncategorized");
+        
+        // Hide Admin & Moderation unless 'all' is passed
+        if !show_all && (category == "Admin" || category == "Moderation") {
+            continue;
+        }
+
         let desc = cmd.description.as_deref().unwrap_or("No description provided");
         categories.entry(category).or_default().push(format!("`/{}` - {}", cmd.name, desc));
         total_commands += 1;
@@ -594,7 +605,7 @@ pub async fn absen(
 
     let json_data = ctx.data().clan_data.read().await;
     let parsed: serde_json::Value = serde_json::from_str(&json_data).unwrap_or(serde_json::Value::Null);
-    let members_array = parsed["data"].as_array();
+    let members_array = parsed.as_array();
 
     let mut found = false;
     let mut verified_name = String::new();

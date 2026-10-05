@@ -179,6 +179,7 @@ async fn main() {
             day INTEGER NOT NULL,
             month INTEGER NOT NULL,
             year INTEGER,
+            last_announced_year INTEGER,
             UNIQUE(guild_id, discord_id)
         );"
     ).execute(&pool).await.unwrap_or_else(|e| {
@@ -187,6 +188,7 @@ async fn main() {
     });
 
     let _ = sqlx::query("ALTER TABLE khivella_birthdays ADD COLUMN year INTEGER").execute(&pool).await;
+    let _ = sqlx::query("ALTER TABLE khivella_birthdays ADD COLUMN last_announced_year INTEGER").execute(&pool).await;
 
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS khivella_bday_config (
@@ -226,6 +228,68 @@ async fn main() {
                 Err(e) => error!("Failed to fetch clan data: {}", e),
             }
             tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await; // 1 jam
+        }
+    });
+
+    // Background task to check birthdays
+    let bday_pool = pool.clone();
+    let bday_http = client.clone();
+    tokio::spawn(async move {
+        loop {
+            use chrono::{Datelike, Utc};
+            let now = Utc::now();
+            let current_day = now.day() as i32;
+            let current_month = now.month() as i32;
+            let current_year = now.year();
+
+            // Find all birthdays today that haven't been announced this year
+            let rows = sqlx::query(
+                "SELECT b.guild_id, b.discord_id, c.channel_id 
+                 FROM khivella_birthdays b 
+                 JOIN khivella_bday_config c ON b.guild_id = c.guild_id 
+                 WHERE b.day = $1 AND b.month = $2 AND (b.last_announced_year IS NULL OR b.last_announced_year != $3)"
+            )
+            .bind(current_day)
+            .bind(current_month)
+            .bind(current_year)
+            .fetch_all(&bday_pool)
+            .await;
+
+            if let Ok(records) = rows {
+                use sqlx::Row;
+                for r in records {
+                    let guild_id: String = r.get("guild_id");
+                    let discord_id: String = r.get("discord_id");
+                    let channel_id_str: String = r.get("channel_id");
+                    
+                    if let Ok(channel_id) = channel_id_str.parse::<u64>() {
+                        let cid = serenity::model::id::ChannelId::new(channel_id);
+                        
+                        let embed = serenity::builder::CreateEmbed::new()
+                            .title("🎉 Happy Birthday! 🎂")
+                            .description(format!("Happy Birthday <@{}>! May all your wishes come true today! 🥳", discord_id))
+                            .color(0xf1c40f)
+                            .thumbnail("https://cdn.discordapp.com/attachments/1113000572797784134/1143890252195934278/birthday.png");
+
+                        let msg = serenity::builder::CreateMessage::new()
+                            .content("@everyone")
+                            .embed(embed);
+
+                        if let Ok(_) = cid.send_message(&bday_http, msg).await {
+                            // Update last_announced_year
+                            let _ = sqlx::query("UPDATE khivella_birthdays SET last_announced_year = $1 WHERE guild_id = $2 AND discord_id = $3")
+                                .bind(current_year)
+                                .bind(guild_id)
+                                .bind(discord_id)
+                                .execute(&bday_pool)
+                                .await;
+                        }
+                    }
+                }
+            }
+
+            // Check every 1 hour
+            tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await;
         }
     });
 
