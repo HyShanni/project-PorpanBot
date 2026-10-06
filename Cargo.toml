@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 serenity = { version = "0.12", default-features = false, features = ["client", "standard_framework", "voice", "rustls_backend", "gateway", "model", "cache"] }
-songbird = { version = "0.4.3", features = ["builtin-queue", "rustls"] }
+songbird = { version = "0.4.3", features = ["builtin-queue", "rustls", "yt-dlp", "symphonia-all"] }
 tokio = { version = "1.34", features = ["macros", "rt-multi-thread"] }
 dotenvy = "0.15"
 tracing = "0.1"
