@@ -221,7 +221,7 @@ struct ModActionRequest {
     action: String,
     reason: String,
     duration_minutes: Option<i64>,
-}
+0}
 
 async fn remote_mod_action(
     State(state): State<ApiState>,
