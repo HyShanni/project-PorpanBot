@@ -276,6 +276,42 @@ async fn remote_mod_action(
     Json(SendMessageResponse { success: true, error: None })
 }
 
+#[derive(Serialize)]
+struct UserResponse {
+    id: String,
+    username: String,
+    global_name: Option<String>,
+    avatar_url: Option<String>,
+}
+
+async fn get_discord_user(
+    State(state): State<ApiState>,
+    axum::extract::Path(discord_id): axum::extract::Path<String>,
+) -> Json<Option<UserResponse>> {
+    if let Ok(id) = discord_id.parse::<u64>() {
+        let user_id = serenity::model::id::UserId::new(id);
+        
+        if let Some(user) = state.discord_cache.user(user_id) {
+            return Json(Some(UserResponse {
+                id: user.id.to_string(),
+                username: user.name.clone(),
+                global_name: user.global_name.clone(),
+                avatar_url: user.avatar_url(),
+            }));
+        }
+        
+        if let Ok(user) = state.discord_http.get_user(user_id).await {
+            return Json(Some(UserResponse {
+                id: user.id.to_string(),
+                username: user.name.clone(),
+                global_name: user.global_name.clone(),
+                avatar_url: user.avatar_url(),
+            }));
+        }
+    }
+    Json(None)
+}
+
 pub async fn start_api_server(chatbot_state: Arc<RwLock<bool>>, discord_cache: Arc<Cache>, discord_http: Arc<Http>, start_time: Instant, db_pool: sqlx::PgPool) {
     let api_state = ApiState {
         chatbot_enabled: chatbot_state,
@@ -291,6 +327,7 @@ pub async fn start_api_server(chatbot_state: Arc<RwLock<bool>>, discord_cache: A
         .route("/api/message/send", post(send_message))
         .route("/api/message/embed", post(send_embed_message))
         .route("/api/moderation/action", post(remote_mod_action))
+        .route("/api/user/:discord_id", get(get_discord_user))
         .layer(CorsLayer::permissive())
         .with_state(api_state);
 
