@@ -324,8 +324,9 @@ async fn main() {
     let bday_http = client.http.clone();
     tokio::spawn(async move {
         loop {
-            use chrono::{Datelike, Utc};
-            let now = Utc::now();
+            use chrono::{Datelike, FixedOffset, Utc};
+            let wib = FixedOffset::east_opt(7 * 3600).unwrap();
+            let now = Utc::now().with_timezone(&wib);
             let current_day = now.day() as i32;
             let current_month = now.month() as i32;
             let current_year = now.year();
@@ -368,7 +369,7 @@ async fn main() {
                     }
                 }
             }
-            tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await;
+            tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
         }
     });
 
