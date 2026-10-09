@@ -289,7 +289,7 @@ async fn main() {
                 ctx.set_presence(Some(ActivityData::playing("StayWith4Fun")), OnlineStatus::Online);
 
                 // Auto-join 24/7 VC
-                let vc_id = ChannelId::new(1556718645563105441);
+                let vc_id = ChannelId::new(1557962426505371690);
                 if let Ok(serenity::model::channel::Channel::Guild(gc)) = ctx.http.get_channel(vc_id).await {
                     if let Some(manager) = songbird::get(ctx).await {
                         let _ = manager.join(gc.guild_id, gc.id).await;
