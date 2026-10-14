@@ -1051,15 +1051,35 @@ pub async fn fftrack(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-/// Enable voice tracking on a voice channel and set a log channel.
+/// Enable voice tracking — auto-detects your current voice channel.
 #[poise::command(slash_command, prefix_command, rename = "on", category = "Utility", guild_only)]
 pub async fn fftrack_on(
     ctx: Context<'_>,
-    #[description = "Voice channel to track"] voice_channel: serenity::all::ChannelId,
     #[description = "Text channel to send join/leave logs"] log_channel: serenity::all::ChannelId,
 ) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap();
+    let author_id = ctx.author().id;
     let db_pool = &ctx.data().db_pool;
+
+    // Extract channel_id from cache synchronously so CacheRef is dropped before any .await
+    let voice_channel_id: Option<serenity::model::id::ChannelId> = ctx
+        .cache()
+        .guild(guild_id)
+        .and_then(|g| g.voice_states.get(&author_id).and_then(|vs| vs.channel_id));
+
+    let voice_channel = match voice_channel_id {
+        Some(ch) => ch,
+        None => {
+            send_embed(
+                ctx,
+                "❌ Not in a Voice Channel",
+                "You must be **inside a voice channel** to enable tracking.\nJoin a voice channel first, then run this command.",
+                0xED4245,
+            )
+            .await?;
+            return Ok(());
+        }
+    };
 
     let res = sqlx::query(
         "INSERT INTO khivella_vc_tracking (guild_id, voice_channel_id, log_channel_id, is_active)
@@ -1090,14 +1110,34 @@ pub async fn fftrack_on(
     Ok(())
 }
 
-/// Disable voice tracking on a voice channel.
+/// Disable voice tracking — auto-detects your current voice channel.
 #[poise::command(slash_command, prefix_command, rename = "off", category = "Utility", guild_only)]
 pub async fn fftrack_off(
     ctx: Context<'_>,
-    #[description = "Voice channel to stop tracking"] voice_channel: serenity::all::ChannelId,
 ) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap();
+    let author_id = ctx.author().id;
     let db_pool = &ctx.data().db_pool;
+
+    // Extract channel_id from cache synchronously so CacheRef is dropped before any .await
+    let voice_channel_id: Option<serenity::model::id::ChannelId> = ctx
+        .cache()
+        .guild(guild_id)
+        .and_then(|g| g.voice_states.get(&author_id).and_then(|vs| vs.channel_id));
+
+    let voice_channel = match voice_channel_id {
+        Some(ch) => ch,
+        None => {
+            send_embed(
+                ctx,
+                "❌ Not in a Voice Channel",
+                "You must be **inside a voice channel** to disable tracking.\nJoin the tracked voice channel first, then run this command.",
+                0xED4245,
+            )
+            .await?;
+            return Ok(());
+        }
+    };
 
     let res = sqlx::query(
         "UPDATE khivella_vc_tracking SET is_active = FALSE WHERE guild_id = $1 AND voice_channel_id = $2"
@@ -1121,7 +1161,7 @@ pub async fn fftrack_off(
             send_embed(
                 ctx,
                 "Not Found",
-                "No active tracking found for that channel.",
+                "No active tracking found for this voice channel.",
                 0xf39c12,
             )
             .await?;
