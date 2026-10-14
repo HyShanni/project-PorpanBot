@@ -225,10 +225,24 @@ async fn main() {
         Default::default()
     });
 
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS khivella_vc_tracking (
+            guild_id TEXT NOT NULL,
+            voice_channel_id TEXT NOT NULL,
+            log_channel_id TEXT NOT NULL,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            UNIQUE(guild_id, voice_channel_id)
+        );"
+    ).execute(&pool).await.unwrap_or_else(|e| {
+        error!("Failed to initialize khivella_vc_tracking table: {:?}", e);
+        Default::default()
+    });
+
     let intents = GatewayIntents::non_privileged() 
         | GatewayIntents::MESSAGE_CONTENT
         | GatewayIntents::GUILD_MEMBERS
-        | GatewayIntents::GUILD_MESSAGES;
+        | GatewayIntents::GUILD_MESSAGES
+        | GatewayIntents::GUILD_VOICE_STATES;
 
     let chatbot_state = std::sync::Arc::new(tokio::sync::RwLock::new(true));
     let chat_history = std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new()));
@@ -270,6 +284,7 @@ async fn main() {
                 ping(), userinfo(), serverinfo(), avatar(), help(),
                 report(), stats(), about(), profile(), members(),
                 absen(), absen_manage(), bday(), bday_manage(), ffevent(), ffevent_manage(),
+                fftrack(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some("ff".into()),

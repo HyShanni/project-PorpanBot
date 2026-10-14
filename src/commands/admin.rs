@@ -1035,3 +1035,100 @@ pub async fn ffevent_manage_remove(
     }
     Ok(())
 }
+
+// ─── VOICE TRACKING (fftrack) ────────────────────────────────────────────────
+
+/// Voice tracking commands. Use subcommand `on` or `off`.
+#[poise::command(
+    slash_command,
+    prefix_command,
+    rename = "fftrack",
+    category = "Utility",
+    guild_only,
+    subcommands("fftrack_on", "fftrack_off")
+)]
+pub async fn fftrack(_ctx: Context<'_>) -> Result<(), Error> {
+    Ok(())
+}
+
+/// Enable voice tracking on a voice channel and set a log channel.
+#[poise::command(slash_command, prefix_command, rename = "on", category = "Utility", guild_only)]
+pub async fn fftrack_on(
+    ctx: Context<'_>,
+    #[description = "Voice channel to track"] voice_channel: serenity::all::ChannelId,
+    #[description = "Text channel to send join/leave logs"] log_channel: serenity::all::ChannelId,
+) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let db_pool = &ctx.data().db_pool;
+
+    let res = sqlx::query(
+        "INSERT INTO khivella_vc_tracking (guild_id, voice_channel_id, log_channel_id, is_active)
+         VALUES ($1, $2, $3, TRUE)
+         ON CONFLICT (guild_id, voice_channel_id) DO UPDATE
+         SET log_channel_id = EXCLUDED.log_channel_id, is_active = TRUE"
+    )
+    .bind(guild_id.to_string())
+    .bind(voice_channel.to_string())
+    .bind(log_channel.to_string())
+    .execute(db_pool)
+    .await;
+
+    if res.is_ok() {
+        send_embed(
+            ctx,
+            "🎙️ Voice Tracking: ON",
+            &format!(
+                "Voice tracking has been **ENABLED**!\n\n**Voice Channel:** <#{}>\n**Log Channel:** <#{}>",
+                voice_channel, log_channel
+            ),
+            0x2ecc71,
+        )
+        .await?;
+    } else {
+        send_embed(ctx, "Error", "Failed to enable voice tracking.", 0xED4245).await?;
+    }
+    Ok(())
+}
+
+/// Disable voice tracking on a voice channel.
+#[poise::command(slash_command, prefix_command, rename = "off", category = "Utility", guild_only)]
+pub async fn fftrack_off(
+    ctx: Context<'_>,
+    #[description = "Voice channel to stop tracking"] voice_channel: serenity::all::ChannelId,
+) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let db_pool = &ctx.data().db_pool;
+
+    let res = sqlx::query(
+        "UPDATE khivella_vc_tracking SET is_active = FALSE WHERE guild_id = $1 AND voice_channel_id = $2"
+    )
+    .bind(guild_id.to_string())
+    .bind(voice_channel.to_string())
+    .execute(db_pool)
+    .await;
+
+    match res {
+        Ok(r) if r.rows_affected() > 0 => {
+            send_embed(
+                ctx,
+                "🎙️ Voice Tracking: OFF",
+                &format!("Voice tracking for <#{}> has been **DISABLED**.", voice_channel),
+                0xED4245,
+            )
+            .await?;
+        }
+        Ok(_) => {
+            send_embed(
+                ctx,
+                "Not Found",
+                "No active tracking found for that channel.",
+                0xf39c12,
+            )
+            .await?;
+        }
+        Err(_) => {
+            send_embed(ctx, "Error", "Failed to disable voice tracking.", 0xED4245).await?;
+        }
+    }
+    Ok(())
+}
