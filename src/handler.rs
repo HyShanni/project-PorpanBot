@@ -230,34 +230,38 @@ pub async fn event_handler(
                 };
                 let log_channel = serenity::model::id::ChannelId::new(log_channel_id);
 
-                // Fetch username
+                // Fetch user info
                 let user = match ctx.http.get_user(user_id).await {
                     Ok(u) => u,
                     Err(_) => continue,
                 };
 
-                // Fetch voice channel name
-                let vc_name = match ctx.http.get_channel(ev.channel_id).await {
-                    Ok(ch) => ch.guild().map(|g| g.name.clone()).unwrap_or_else(|| ev.channel_id.to_string()),
-                    Err(_) => ev.channel_id.to_string(),
+                let author_name = match &user.global_name {
+                    Some(gn) if gn != &user.name => format!("{} (@{})", gn, user.name),
+                    _ => user.name.clone(),
                 };
 
-                let (action_word, color, emoji) = if ev.is_join {
-                    ("join voice", 0x2ecc71u32, "🟢")
+                let (action_text, color) = if ev.is_join {
+                    ("Joined", 0x10B981u32)
                 } else {
-                    ("leave voice", 0xED4245u32, "🔴")
+                    ("Left", 0xF43F5Eu32)
                 };
 
                 let embed = serenity::builder::CreateEmbed::new()
+                    .author(
+                        serenity::builder::CreateEmbedAuthor::new(author_name)
+                            .icon_url(user.face()),
+                    )
                     .description(format!(
-                        "{} **{}** {} **{}**",
-                        emoji, user.name, action_word, vc_name
+                        "{} <#{}>",
+                        action_text, ev.channel_id
                     ))
                     .color(color)
-                    .thumbnail(user.face())
-                    .footer(serenity::builder::CreateEmbedFooter::new(
-                        format!("User ID: {}", user_id)
-                    ))
+                    .footer(
+                        serenity::builder::CreateEmbedFooter::new(
+                            format!("User ID: {}", user_id)
+                        ),
+                    )
                     .timestamp(serenity::all::Timestamp::now());
 
                 let _ = log_channel

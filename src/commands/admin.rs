@@ -1055,11 +1055,14 @@ pub async fn fftrack(_ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(slash_command, prefix_command, rename = "on", category = "Utility", guild_only)]
 pub async fn fftrack_on(
     ctx: Context<'_>,
-    #[description = "Text channel to send join/leave logs"] log_channel: serenity::all::ChannelId,
+    #[description = "Text channel for logs (defaults to current channel)"] log_channel: Option<serenity::all::ChannelId>,
 ) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap();
     let author_id = ctx.author().id;
     let db_pool = &ctx.data().db_pool;
+
+    // If no log channel specified, use the current text channel
+    let log_channel = log_channel.unwrap_or(ctx.channel_id());
 
     // Extract channel_id from cache synchronously so CacheRef is dropped before any .await
     let voice_channel_id: Option<serenity::model::id::ChannelId> = ctx
