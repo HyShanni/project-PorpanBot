@@ -1042,7 +1042,7 @@ pub async fn ffevent_manage_remove(
 #[poise::command(
     slash_command,
     prefix_command,
-    rename = "fftrack",
+    rename = "track",
     category = "Utility",
     guild_only,
     subcommands("fftrack_on", "fftrack_off")
