@@ -1075,8 +1075,8 @@ pub async fn fftrack_on(
         None => {
             send_embed(
                 ctx,
-                "❌ Not in a Voice Channel",
-                "You must be **inside a voice channel** to enable tracking.\nJoin a voice channel first, then run this command.",
+                "Not in a Voice Channel",
+                "You must be inside a voice channel to enable tracking.\nJoin a voice channel first, then run this command.",
                 0xED4245,
             )
             .await?;
@@ -1099,12 +1099,9 @@ pub async fn fftrack_on(
     if res.is_ok() {
         send_embed(
             ctx,
-            "🎙️ Voice Tracking: ON",
-            &format!(
-                "Voice tracking has been **ENABLED**!\n\n**Voice Channel:** <#{}>\n**Log Channel:** <#{}>",
-                voice_channel, log_channel
-            ),
-            0x2ecc71,
+            "Voice Tracking: ON",
+            "Voice tracking has been **enabled**.",
+            0x10B981,
         )
         .await?;
     } else {
@@ -1133,8 +1130,8 @@ pub async fn fftrack_off(
         None => {
             send_embed(
                 ctx,
-                "❌ Not in a Voice Channel",
-                "You must be **inside a voice channel** to disable tracking.\nJoin the tracked voice channel first, then run this command.",
+                "Not in a Voice Channel",
+                "You must be inside a voice channel to disable tracking.\nJoin the tracked voice channel first, then run this command.",
                 0xED4245,
             )
             .await?;
@@ -1154,8 +1151,8 @@ pub async fn fftrack_off(
         Ok(r) if r.rows_affected() > 0 => {
             send_embed(
                 ctx,
-                "🎙️ Voice Tracking: OFF",
-                &format!("Voice tracking for <#{}> has been **DISABLED**.", voice_channel),
+                "Voice Tracking: OFF",
+                "Voice tracking has been **disabled**.",
                 0xED4245,
             )
             .await?;
